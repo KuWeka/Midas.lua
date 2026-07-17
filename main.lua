@@ -1,10 +1,15 @@
 -- ==============================================================================
--- PROSPECTING! Midas Touch (Ultimate V29)
--- Features: Auto Farm, Movement, Auto Sell, Auto Favourite, Teleport, Server hop, Shop, Settings
+-- PROSPECTING! ULTIMATE AUTO FARM (V28)
+-- Merged by Antigravity
+-- Features: Fast Mode (DOIT), Anti-Cheat Bypass (V26), Auto-Sell (Lerp/Walk), 
+-- Server Hop, Remote Shop, Auto-Favourite, Webhook, Anti-AFK
 -- ==============================================================================
 
-if not game:IsLoaded() then game.Loaded:Wait() end
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
 
+-- Menghapus UI Lama jika ada
 local coreGui = game:GetService("CoreGui")
 local uiNameToDestroy = "FluentRenewed_ProspectingUI"
 local uiElement = coreGui:FindFirstChild(uiNameToDestroy)
@@ -18,17 +23,18 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
-local VirtualUser = game:GetService("VirtualUser")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local VirtualUser = game:GetService("VirtualUser")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
 local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- ==========================================
--- 0. MEMORY MANAGEMENT & KNIGHTMARE BYPASS
+-- 0. MEMORY MANAGEMENT & KNIGHTMARE BYPASS (V26)
 -- ==========================================
 local Connections = {}
 local CharConnections = {}
@@ -85,6 +91,7 @@ disableKnightmare()
 -- ==========================================
 -- 1. FLUENT UI & HOOKS INITIALIZATION
 -- ==========================================
+-- Anti-Cheat bypass (kept intact for executor compatibility from DOIT)
 local g = getinfo or debug.getinfo
 local d = false
 local h = {}
@@ -115,8 +122,8 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Library:CreateWindow({
-    Title = "Prospecting! Midas Touch",
-    SubTitle = "Ultimate V29",
+    Title = "Prospecting! Ultimate V28",
+    SubTitle = "by DOIT & Antigravity",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -146,15 +153,27 @@ local State = {
     panLocation = nil
 }
 
+local cachedInvLabel = nil
+local cachedMerchantModel = nil
+local cachedMerchantPos = nil
+local merchantCacheTime = 0
+
+-- Webhook Vars
+local Itemnameandrarity = {}
 local LogItems = false
 local WebhookLink = ""
 
+-- Auto-Favourite Vars
+local autoLockConnections = {}
+local pendingLocks = {}
+
+-- Move & Jump Misc
 local MoveState = { WS = false, WS_Val = 50, JP = false, JP_Val = 100, IJ = false, NC = false }
 local ncRayParams = RaycastParams.new()
 local antiAFK = false
 
 -- ==========================================
--- 3. UTILITIES & DATA SCRAPING
+-- 3. UTILITIES & FUNCTIONS
 -- ==========================================
 local function simulateMouseDown(guiObject)
     if not guiObject then return end
@@ -170,63 +189,31 @@ local function simulateMouseUp(guiObject)
     VirtualInputManager:SendMouseButtonEvent(x, y + 36, 0, false, guiObject, 1)
 end
 
-local function getEquippedTool()
+local function findPan()
     local char = LocalPlayer.Character
-    return char and char:FindFirstChildOfClass("Tool")
-end
-
-local function getBackpackTool()
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if backpack then
-        for _, item in ipairs(backpack:GetChildren()) do
-            if item:IsA("Tool") and (item.Name:match("Pan") or item.Name:match("Shovel") or item.Name:match("Worldshaker") or item.Name:match("Earthbreaker")) then
-                return item
-            end
-        end
+    if not char then return nil end
+    for _, tool in ipairs(LocalPlayer.Backpack:GetChildren()) do
+        if tool:IsA("Tool") and (tool.Name:match("Pan") or tool.Name == "Worldshaker" or tool.Name == "Earthbreaker") then return tool end
     end
-    return nil
-end
-
-local function equipTool()
-    local equipped = getEquippedTool()
-    if equipped then return equipped end
-    
-    local tool = getBackpackTool()
-    local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
-    if tool and hum then
-        hum:EquipTool(tool)
-        task.wait(0.2)
-        -- Jika EquipTool gagal, paksa pindahkan ke tangan karakter
-        if not char:FindFirstChild(tool.Name) then
-            tool.Parent = char
-            task.wait(0.1)
-        end
-        return tool
+    for _, tool in ipairs(char:GetChildren()) do
+        if tool:IsA("Tool") and (tool.Name:match("Pan") or tool.Name == "Worldshaker" or tool.Name == "Earthbreaker") then return tool end
     end
     return nil
 end
 
 local function getInventoryStats()
-    -- Get Max Size using multiple fallbacks
     local maxCapacity = LocalPlayer:GetAttribute("InventorySize") or 500
-    local pgui = LocalPlayer:FindFirstChild("PlayerGui")
-    if pgui then
-        local invLabel = pgui:FindFirstChild("BackpackGui") and pgui.BackpackGui:FindFirstChild("Backpack", true) and pgui.BackpackGui.Backpack:FindFirstChild("InventorySize", true)
-        if invLabel and invLabel.Text then
-            local maxStr = string.match(invLabel.Text, "/%s*(%d+)")
-            if maxStr then maxCapacity = tonumber(maxStr) or maxCapacity end
-        end
+    local backpackTwo = LocalPlayer:FindFirstChild("BackpackTwo")
+    
+    if not backpackTwo then 
+        return 0, maxCapacity 
     end
 
-    -- Count valid items
-    local backpackTwo = LocalPlayer:FindFirstChild("BackpackTwo")
-    if not backpackTwo then return 0, maxCapacity end
-
     local items = backpackTwo:GetChildren()
-    local charTool = getEquippedTool()
-    if charTool then table.insert(items, charTool) end
+    local charTool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    if charTool then
+        table.insert(items, charTool)
+    end
 
     local count = 0
     for _, item in ipairs(items) do
@@ -239,16 +226,22 @@ local function getInventoryStats()
     return count, maxCapacity
 end
 
-local function isPanFull()
+local function getFillLabelText()
     local pgui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not pgui then return false end
-    
-    local fillTextLabel = pgui:FindFirstChild("ToolUI") 
-        and pgui.ToolUI:FindFirstChild("FillingPan") 
-        and pgui.ToolUI.FillingPan:FindFirstChild("FillText")
-        
-    if fillTextLabel and fillTextLabel:IsA("TextLabel") then
-        local text = fillTextLabel.Text:gsub("<[^>]->", ""):gsub(",", "")
+    local toolUI = pgui and pgui:FindFirstChild("ToolUI")
+    if toolUI then
+        local fillingPan = toolUI:FindFirstChild("FillingPan")
+        local fillText = fillingPan and fillingPan:FindFirstChild("FillText")
+        if fillText and fillText:IsA("TextLabel") then
+            return fillText.Text:gsub("<[^>]->", ""):gsub(",", "")
+        end
+    end
+    return nil
+end
+
+local function isPanFull()
+    local text = getFillLabelText()
+    if text then
         local cur, max = string.match(text, "(%d+)%s*/%s*(%d+)")
         if cur and max then return tonumber(cur) >= tonumber(max) end
     end
@@ -256,53 +249,144 @@ local function isPanFull()
 end
 
 -- ==========================================
--- 4. MERCHANT LOCATOR
+-- 4. MOVEMENT UTILITIES (WALK VS LERP)
 -- ==========================================
+local function walkTo(targetPosition)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not (hum and root and hum.Health > 0) then return end
+
+    local timeout = 15 
+    local startTime = tick()
+    
+    while tick() - startTime < timeout do
+        if not char or hum.Health <= 0 then break end
+        local currentPos = root.Position
+        local dist = (Vector3.new(currentPos.X, 0, currentPos.Z) - Vector3.new(targetPosition.X, 0, targetPosition.Z)).Magnitude
+        
+        if dist <= 3 then break end
+        
+        hum:MoveTo(targetPosition)
+        task.wait(0.1)
+    end
+end
+
+local function dynamicLerpTo(targetCFrame, customSpeed)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not root then return end
+    
+    local startPos = root.Position
+    local distance = (startPos - targetCFrame.Position).Magnitude
+    local speed = customSpeed or 35
+    local duration = math.max(1.0, distance / speed) 
+    local startTime = tick()
+    
+    if hum then hum.PlatformStand = true end
+    
+    local originalCollisions = {}
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            originalCollisions[part] = part.CanCollide
+            part.CanCollide = false
+        end
+    end
+    
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        local elapsed = tick() - startTime
+        local alpha = math.clamp(elapsed / duration, 0, 1)
+        root.AssemblyLinearVelocity = Vector3.zero 
+        root.CFrame = CFrame.new(startPos:Lerp(targetCFrame.Position, alpha))
+        if alpha >= 1 then connection:Disconnect() end
+    end)
+    
+    while connection.Connected do task.wait(0.03) end
+    
+    for part, state in pairs(originalCollisions) do
+        if part and part.Parent then part.CanCollide = state end
+    end
+    
+    root.AssemblyLinearVelocity = Vector3.zero
+    if hum then hum.PlatformStand = false end
+    task.wait(0.5) 
+end
+
 local merchantData = {
-    {Name = "StarterTown Merchant", Path = {"Map", "NPCs", "StarterTown", "Merchant"}},
-    {Name = "RiverTown Merchant", Path = {"Map", "NPCs", "RiverTown", "Merchant"}},
-    {Name = "Delta Shady Merchant", Path = {"Map", "NPCs", "Delta", "Shady Merchant"}},
-    {Name = "Cavern Merchant", Path = {"Map", "NPCs", "Cavern", "Merchant"}},
-    {Name = "Volcano Merchant", Path = {"Map", "NPCs", "Volcano", "Merchant"}}, 
+    {Name = "StarterTown Merchant", Path = {"NPCs", "StarterTown", "Merchant"}},
+    {Name = "RiverTown Merchant", Path = {"NPCs", "RiverTown", "Merchant"}},
+    {Name = "Delta Shady Merchant", Path = {"NPCs", "Delta", "Shady Merchant"}},
+    {Name = "Cavern Merchant", Path = {"NPCs", "Cavern", "Merchant"}},
+    {Name = "Volcano Merchant", Path = {"NPCs", "Volcano", "Merchant"}}, 
 }
+
+local function getAllVolcanoMerchants()
+    local volcanoFolder = Workspace:FindFirstChild("NPCs") and Workspace.NPCs:FindFirstChild("Volcano")
+    local merchants = {}
+    if volcanoFolder then
+        for _, obj in ipairs(volcanoFolder:GetChildren()) do
+            if obj.Name == "Merchant" and obj:FindFirstChild("HumanoidRootPart") then
+                table.insert(merchants, obj)
+            end
+        end
+    end
+    return merchants
+end
 
 local function getTargetMerchant()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
+    if not root then return nil, nil, 0 end
     
     local selectedMerchant = Options.MerchantSelector and Options.MerchantSelector.Value or "Closest"
-    local targetPos = nil
     
     if selectedMerchant == "Closest" then
+        if cachedMerchantPos and (tick() - merchantCacheTime < 60) then
+            return cachedMerchantModel, cachedMerchantPos, (root.Position - cachedMerchantPos).Magnitude
+        end
+        
         local minDist = math.huge
+        local closestModel = nil
+        local closestPos = nil
+        
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if obj:IsA("Model") and (obj.Name:match("Merchant") or obj.Name:match("Seller")) then
-                local hrp = obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart
+                local hrp = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
                 if hrp then
                     local dist = (root.Position - hrp.Position).Magnitude
                     if dist < minDist then
                         minDist = dist
-                        targetPos = hrp.Position
+                        closestModel = obj
+                        closestPos = hrp.Position
                     end
                 end
             end
         end
+        
+        if closestModel then
+            cachedMerchantModel = closestModel
+            cachedMerchantPos = closestPos
+            merchantCacheTime = tick()
+        end
+        return closestModel, closestPos, minDist
     else
+        -- Find specific merchant based on DOIT's hardcoded paths
+        local targetModel = nil
+        local minDistance = math.huge
+        local playerPos = root.Position
+        
         for _, data in ipairs(merchantData) do
             if data.Name == selectedMerchant then
                 if data.Name == "Volcano Merchant" then
-                    local volcanoFolder = Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("NPCs") and Workspace.Map.NPCs:FindFirstChild("Volcano")
-                    if volcanoFolder then
-                        local minDistance = math.huge
-                        for _, obj in ipairs(volcanoFolder:GetChildren()) do
-                            if obj.Name == "Merchant" and obj:FindFirstChild("HumanoidRootPart") then
-                                local dist = (root.Position - obj.HumanoidRootPart.Position).Magnitude
-                                if dist < minDistance then
-                                    minDistance = dist
-                                    targetPos = obj.HumanoidRootPart.Position
-                                end
-                            end
+                    local volcanoMerchants = getAllVolcanoMerchants()
+                    for _, merchant in ipairs(volcanoMerchants) do
+                        local dist = (playerPos - merchant.HumanoidRootPart.Position).Magnitude
+                        if dist < minDistance then 
+                            minDistance = dist
+                            targetModel = merchant 
                         end
                     end
                 else
@@ -311,20 +395,28 @@ local function getTargetMerchant()
                         merchant = merchant:FindFirstChild(partName)
                         if not merchant then break end
                     end
-                    if merchant then
-                        local hrp = merchant:FindFirstChild("HumanoidRootPart") or merchant.PrimaryPart
-                        if hrp then targetPos = hrp.Position end
+                    if merchant and merchant.PrimaryPart then
+                        targetModel = merchant
+                    elseif merchant and merchant:FindFirstChild("HumanoidRootPart") then
+                        targetModel = merchant
                     end
                 end
                 break
             end
         end
+        
+        if targetModel then
+            local hrp = targetModel:FindFirstChild("HumanoidRootPart") or targetModel:FindFirstChildWhichIsA("BasePart")
+            if hrp then
+                return targetModel, hrp.Position, (playerPos - hrp.Position).Magnitude
+            end
+        end
+        return nil, nil, 0
     end
-    return targetPos
 end
 
 -- ==========================================
--- 5. AUTO SELL & WEBHOOK LOGIC (INSTANT)
+-- 5. AUTO SELL & WEBHOOK LOGIC
 -- ==========================================
 local function shouldAutoSell()
     if not Options.AutoSellToggle or not Options.AutoSellToggle.Value then return false end
@@ -345,7 +437,7 @@ end
 local lastSellAttempt = 0
 local function instantSellAll()
     if State.isSelling then return end
-    if tick() - lastSellAttempt < 2 then return end 
+    if tick() - lastSellAttempt < 6 then return end 
     State.isSelling = true
     lastSellAttempt = tick()
     
@@ -355,49 +447,76 @@ local function instantSellAll()
         if not root then return end
         
         local originalCFrame = root.CFrame
-        local merchantPos = getTargetMerchant()
+        local merchantModel, merchantPos, merchantDist = getTargetMerchant()
         
         if not merchantPos then
             Library:Notify({ Title = "Sell Error", Content = "Merchant tidak ditemukan!", Duration = 4 })
             return
         end
-        
-        -- INSTANT TELEPORT
-        root.CFrame = CFrame.new(merchantPos + Vector3.new(3, 1, 0))
-        task.wait(0.1)
-        root.Anchored = true
-        task.wait(0.1)
-        
-        -- INSTANT SELL REMOTE
-        local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
-        local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
-        if sellRemote then
-            if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
-            elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
+        if merchantDist > 3500 then
+            Library:Notify({ Title = "Sell Error", Content = "Merchant terlalu jauh!", Duration = 4 })
+            return
         end
         
-        task.wait(0.3)
+        local safePos
+        if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
+            safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
+        else
+            safePos = merchantPos + Vector3.new(3, 1, 0)
+        end
         
-        -- INSTANT RETURN
-        root.Anchored = false
-        root.CFrame = originalCFrame
-        task.wait(0.1)
+        -- Movement Choice (Walk vs Lerp)
+        local moveMethod = Options.SellMoveMethod and Options.SellMoveMethod.Value or "Teleport (Lerp)"
+        if moveMethod == "Teleport (Lerp)" then
+            dynamicLerpTo(CFrame.new(safePos))
+        else
+            walkTo(safePos)
+        end
+        
         root.Anchored = true
-        root.AssemblyLinearVelocity = Vector3.zero
-        task.wait(0.1)
-        root.Anchored = false
+        task.wait(0.5)
         
-        -- Discord Webhook
+        pcall(function()
+            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+            if remotes and remotes:FindFirstChild("Shop") and remotes.Shop:FindFirstChild("SellAll") then
+                local sellAll = remotes.Shop.SellAll
+                if sellAll:IsA("RemoteFunction") then sellAll:InvokeServer()
+                elseif sellAll:IsA("RemoteEvent") then sellAll:FireServer() end
+            end
+        end)
+        
+        task.wait(1.5)
+        
+        root.Anchored = false
+        task.wait(0.2) 
+        
+        -- Return to original position
+        if moveMethod == "Teleport (Lerp)" then
+            dynamicLerpTo(originalCFrame)
+            root.Anchored = true
+            root.AssemblyLinearVelocity = Vector3.zero
+            task.wait(0.25)
+            root.Anchored = false
+        else
+            walkTo(originalCFrame.Position)
+        end
+        
+        -- Send Webhook if enabled and full
         if LogItems and WebhookLink ~= "" then
             pcall(function()
-                request({
+                local data = {
+                    content = "Inventory was full so we sold it",
+                    username = "Prospecting Webhook"
+                }
+                local response = request({
                     Url = WebhookLink,
                     Method = "POST",
                     Headers = {["Content-Type"] = "application/json"},
-                    Body = HttpService:JSONEncode({content = "Successfully auto-sold inventory to merchant.", username = "Midas Touch Webhook"})
+                    Body = HttpService:JSONEncode(data)
                 })
             end)
         end
+
     end)
     
     State.isSelling = false
@@ -405,21 +524,47 @@ local function instantSellAll()
 end
 
 -- ==========================================
--- 6. AUTO FAVOURITE (LOCK) LOGIC
+-- 6. AUTO FAVOURITE LOGIC (V27 FIXED)
 -- ==========================================
-local pendingLocks = {}
+local function updateItemsFromStorage()
+    table.clear(Itemnameandrarity)
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    if not remotes then return end
+    
+    local storageF = remotes:FindFirstChild("Storage")
+    if storageF and storageF:FindFirstChild("StorageRequest") then
+        local remote = storageF.StorageRequest
+        local success, inventoryData = pcall(function()
+            return remote:IsA("RemoteFunction") and remote:InvokeServer("GetInventory") or nil
+        end)
+        
+        if success and type(inventoryData) == "table" then
+            for _, item in ipairs(inventoryData) do
+                if type(item) == "table" then
+                    table.insert(Itemnameandrarity, {
+                        Rarity = item.Rarity or "Unknown",
+                        Name = item.Name or "Unknown",
+                        Weight = item.Weight or 0
+                    })
+                end
+            end
+        end
+    end
+end
+
+table.insert(Connections, RunService.Heartbeat:Connect(function()
+    if tick() % 10 < 0.1 then 
+        updateItemsFromStorage()
+    end
+end))
 
 local function scanAndLockBackpack()
     local pgui = LocalPlayer:FindFirstChild("PlayerGui")
     if not pgui then return end
-    
-    local gridFrame = pgui:FindFirstChild("BackpackGui")
-        and pgui.BackpackGui:FindFirstChild("Backpack")
-        and pgui.BackpackGui.Backpack:FindFirstChild("Inventory")
-        and pgui.BackpackGui.Backpack.Inventory:FindFirstChild("ScrollingFrame")
-        and pgui.BackpackGui.Backpack.Inventory.ScrollingFrame:FindFirstChild("UIGridFrame")
-        
-    if not gridFrame then return end
+    local storageUI = pgui:FindFirstChild("StorageUI")
+    if not storageUI then return end
+    local scrollingFrame = storageUI:FindFirstChild("Storage", true)
+    if not scrollingFrame then return end
 
     local rarityValues = { ["Legendary"] = 5, ["Epic"] = 4, ["Rare"] = 3, ["Uncommon"] = 2, ["Common"] = 1 }
     local selectedRarityStr = Options.RarityDropdown and Options.RarityDropdown.Value or "None"
@@ -427,140 +572,187 @@ local function scanAndLockBackpack()
     local minWeight = Options.WeightSlider and Options.WeightSlider.Value or 0
     local selectedNames = Options.LockItemName and Options.LockItemName.Value or {}
     
-    for _, item in ipairs(gridFrame:GetChildren()) do
-        if item:IsA("Frame") and not pendingLocks[item] then
-            -- Verify it's not locked via UI indicators
-            local isLocked = item:FindFirstChild("LockedIcon") or item:FindFirstChild("LockedStrokeFrame")
-            if not isLocked then
-                local itemNameLabel = item:FindFirstChild("ToolName")
-                local toolWeightLabel = item:FindFirstChild("ToolWeight")
+    for _, item in ipairs(scrollingFrame:GetChildren()) do
+        if item:IsA("Frame") and not item:GetAttribute("Locked") and not pendingLocks[item] then
+            local itemNameLabel = item:FindFirstChild("ItemName", true)
+            local itemInfoLabel = item:FindFirstChild("ItemInfo", true)
+            
+            if itemNameLabel and itemInfoLabel then
+                local itemName = itemNameLabel.Text
+                local infoText = itemInfoLabel.Text
                 
-                if itemNameLabel and toolWeightLabel then
-                    local itemName = itemNameLabel.Text
-                    local weightText = toolWeightLabel.Text
-                    local actualWeight = tonumber(string.match(weightText, "([%d%.]+)")) or 0
-                    
-                    local actualRarityStr = "Common"
-                    local newTooltip = item:FindFirstChild("NewTooltip")
-                    if newTooltip then
-                        local rarityLabel = newTooltip:FindFirstChild("Stats") and newTooltip.Stats:FindFirstChild("Rarity") and newTooltip.Stats.Rarity:FindFirstChild("RarityText")
-                        if rarityLabel then
-                            actualRarityStr = rarityLabel.Text
-                        end
+                local actualWeight = tonumber(string.match(infoText, "([%d%.]+)%s*lbs")) or 0
+                local actualRarityStr = string.match(infoText, "Rarity:%s*(%w+)") or "Common"
+                local actualRarityWeight = rarityValues[actualRarityStr] or 0
+                
+                local shouldLock = false
+                
+                if minWeight > 0 and actualWeight >= minWeight then shouldLock = true end
+                if selectedRarityWeight > 0 and actualRarityWeight >= selectedRarityWeight then shouldLock = true end
+                for selectedName, isSelected in pairs(selectedNames) do
+                    if isSelected and string.lower(itemName):match(string.lower(selectedName)) then
+                        shouldLock = true
+                        break
                     end
-                    local actualRarityWeight = rarityValues[actualRarityStr] or 0
+                end
+                
+                if shouldLock then
+                    pendingLocks[item] = tick()
                     
-                    local shouldLock = false
-                    if minWeight > 0 and actualWeight >= minWeight then shouldLock = true end
-                    if selectedRarityWeight > 0 and actualRarityWeight >= selectedRarityWeight then shouldLock = true end
-                    for selectedName, isSelected in pairs(selectedNames) do
-                        if isSelected and string.lower(itemName):match(string.lower(selectedName)) then
-                            shouldLock = true
-                            break
-                        end
-                    end
-                    
-                    if shouldLock then
-                        pendingLocks[item] = tick()
-                        pcall(function()
-                            local lockRemote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Inventory") and ReplicatedStorage.Remotes.Inventory:FindFirstChild("ToggleLock")
-                            if lockRemote then
-                                if lockRemote:IsA("RemoteFunction") then lockRemote:InvokeServer(item.Name)
-                                elseif lockRemote:IsA("RemoteEvent") then lockRemote:FireServer(item.Name) end
+                    pcall(function()
+                        local lockRemote = ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("Storage"):FindFirstChild("ItemAction")
+                        if lockRemote then
+                            if lockRemote:IsA("RemoteFunction") then
+                                lockRemote:InvokeServer("Lock", item.Name)
+                            else
+                                lockRemote:FireServer("Lock", item.Name)
                             end
-                        end)
-                        -- Timeout to prevent deadlock
-                        task.delay(1, function() pendingLocks[item] = nil end)
-                    end
+                            
+                            if LogItems and WebhookLink ~= "" then
+                                local data = {
+                                    content = "Locked Item: " .. itemName .. " (" .. actualRarityStr .. ") - " .. tostring(actualWeight) .. " lbs",
+                                    username = "Prospecting Webhook"
+                                }
+                                request({
+                                    Url = WebhookLink,
+                                    Method = "POST",
+                                    Headers = {["Content-Type"] = "application/json"},
+                                    Body = HttpService:JSONEncode(data)
+                                })
+                            end
+                        end
+                    end)
+                    
+                    local conn
+                    conn = item:GetAttributeChangedSignal("Locked"):Connect(function()
+                        pendingLocks[item] = nil
+                        if conn then conn:Disconnect() end
+                    end)
                 end
             end
         end
     end
 end
 
+-- Loop Anti-Deadlock untuk Lock
 task.spawn(function()
     while task.wait(0.5) do
         if Options.AutoFavoriteToggle and Options.AutoFavoriteToggle.Value then
             scanAndLockBackpack()
+            
+            -- Clear deadlock pending locks (Timeout 3 detik)
+            for item, timeStarted in pairs(pendingLocks) do
+                if tick() - timeStarted > 3 then
+                    pendingLocks[item] = nil
+                end
+            end
         end
     end
 end)
 
 -- ==========================================
--- 7. FAST MODE CORE LOOP (SPAM)
+-- 7. FAST MODE CORE LOOP (DOIT)
 -- ==========================================
-local function doDig()
+local function equipTool(toolName)
+    local char = LocalPlayer.Character
+    if not char then return false end
+    
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool and tool.Name:lower():match(toolName:lower()) then return true end
+    
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, t in ipairs(backpack:GetChildren()) do
+            if t:IsA("Tool") and t.Name:lower():match(toolName:lower()) then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum:EquipTool(t)
+                    task.wait(0.2)
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function dig()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not root or not hum then return end
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+    if not root or not humanoid then return end
     
-    local method = Options.AutoFarmMethod and Options.AutoFarmMethod.Value or "Fast (Teleport)"
-    if method == "Legit (Walk)" then
+    local method = Options.AutoFarmMethod and Options.AutoFarmMethod.Value or "Fast"
+    if method == "Legit" then
         if (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(State.digLocation.X, 0, State.digLocation.Z)).Magnitude > 3 then
-            hum:MoveTo(State.digLocation)
-            task.wait(0.2)
-            return
+            walkTo(State.digLocation)
+            task.wait(0.1)
         end
     else
         if (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(State.digLocation.X, 0, State.digLocation.Z)).Magnitude > 3 then
             root.CFrame = CFrame.new(State.digLocation)
-            task.wait(0.2)
+            task.wait(0.3)
         end
     end
     
-    local tool = equipTool()
-    if not tool then task.wait(0.5); return end
+    local panTool = findPan()
+    if not panTool then task.wait(1); return end
     
-    local pgui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not pgui then return end
+    if panTool.Parent == LocalPlayer.Backpack then
+        humanoid:EquipTool(panTool)
+        task.wait(0.05)
+    end
     
-    local fillBar = pgui:FindFirstChild("ToolUI", true)
-        and pgui.ToolUI:FindFirstChild("FillingPan", true)
-        and pgui.ToolUI.FillingPan:FindFirstChild("Bar")
+    local equippedPan = char:FindFirstChild(panTool.Name)
+    if not equippedPan then task.wait(0.1); return end
     
+    local fillBar
+    for i = 1, 15 do
+        fillBar = LocalPlayer.PlayerGui:FindFirstChild("ToolUI", true)
+            and LocalPlayer.PlayerGui.ToolUI:FindFirstChild("FillingPan", true)
+            and LocalPlayer.PlayerGui.ToolUI.FillingPan:FindFirstChild("Bar")
+        if fillBar then break end
+        task.wait(0.1)
+    end
+
     if not fillBar then task.wait(0.5); return end
 
-    if method == "Fast (Teleport)" then
-        local collectButton = pgui:FindFirstChild("ToolUI", true)
-            and pgui.ToolUI:FindFirstChild("Controls")
-            and pgui.ToolUI.Controls:FindFirstChild("Collect Deposit")
-            
-        local scriptsFolder = tool:FindFirstChild("Scripts")
+    if method == "Fast" then
+        local collectButton
+        for i = 1, 10 do
+            collectButton = LocalPlayer.PlayerGui:FindFirstChild("ToolUI", true)
+                and LocalPlayer.PlayerGui.ToolUI:FindFirstChild("Controls")
+                and LocalPlayer.PlayerGui.ToolUI.Controls:FindFirstChild("Collect Deposit")
+            if collectButton then break end
+            task.wait(0.1)
+        end
+
+        local scriptsFolder = equippedPan:FindFirstChild("Scripts")
         local collectRemote = scriptsFolder and scriptsFolder:FindFirstChild("Collect")
         
         if collectButton and collectRemote then
             simulateMouseDown(collectButton)
             while fillBar.Size.X.Scale < 1 and State.isFarming do
-                pcall(function() collectRemote:InvokeServer(1) end)
+                local success_collect = pcall(function() collectRemote:InvokeServer(1) end)
                 task.wait(0.1)
-                if not (char and char.Parent and getEquippedTool()) then break end
+                if not success_collect then task.wait(0.1) end
+                if not (char and char.Parent and equippedPan and equippedPan.Parent) then break end
             end
             simulateMouseUp(collectButton)
-        else
-            -- Fallback jika UI tidak ada
-            tool:Activate()
-            pcall(function()
-                VirtualUser:CaptureController()
-                VirtualUser:Button1Down(Vector2.new(0,0), Camera.CFrame)
-                task.wait(0.05)
-                VirtualUser:Button1Up(Vector2.new(0,0), Camera.CFrame)
-            end)
-            task.wait(0.1)
         end
     else
-        -- Legit Dig (Hold DigBar)
+        -- Legit Dig Method (Tahan sampai full tanpa putus)
         while fillBar.Size.X.Scale < 1 and State.isFarming do
-            local digBar = pgui:FindFirstChild("ToolUI", true)
-                and pgui.ToolUI:FindFirstChild("DigBar", true)
+            local digBar = LocalPlayer.PlayerGui:FindFirstChild("ToolUI", true)
+                and LocalPlayer.PlayerGui.ToolUI:FindFirstChild("DigBar", true)
             if not digBar then break end
             
             simulateMouseDown(digBar)
-            local digBarLine, perfectZone
+            local digBarLine
+            local perfectZone
             local wait_started = tick()
             local panBecameFull = false
-            
-            while (tick() - wait_started) < 2.0 and not (digBarLine and perfectZone) do
+            while (tick() - wait_started) < 2.0 and not (digBarLine and digBarLine.Visible and perfectZone and perfectZone.Visible) do
                 if fillBar.Size.X.Scale >= 1 then panBecameFull = true; break end
                 digBarLine = digBar:FindFirstChild("Line")
                 if not perfectZone then
@@ -573,13 +765,12 @@ local function doDig()
                 end
                 task.wait(0.05)
             end
-            
-            if not panBecameFull and digBarLine and perfectZone then
+            if not panBecameFull and digBarLine and digBarLine.Visible and perfectZone and perfectZone.Visible then
                 local topY = perfectZone.Position.Y.Scale
                 local bottomY = topY + perfectZone.Size.Y.Scale
                 local timing_started = tick()
                 while (tick() - timing_started) < 3 and State.isFarming do
-                    if fillBar.Size.X.Scale >= 1 then break end
+                    if fillBar.Size.X.Scale >= 1 then panBecameFull = true; break end
                     if not (digBarLine and digBarLine.Visible) then break end
                     if digBarLine.Position.Y.Scale >= topY and digBarLine.Position.Y.Scale <= bottomY then break end
                     task.wait(0.01)
@@ -589,78 +780,87 @@ local function doDig()
             task.wait(0.05)
         end
     end
+    task.wait(0.08)
 end
 
-local function doPan()
+local function pan()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not root or not hum then return end
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+    if not root or not humanoid then return end
     
-    local method = Options.AutoFarmMethod and Options.AutoFarmMethod.Value or "Fast (Teleport)"
-    if method == "Legit (Walk)" then
+    local method = Options.AutoFarmMethod and Options.AutoFarmMethod.Value or "Fast"
+    if method == "Legit" then
         if (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(State.panLocation.X, 0, State.panLocation.Z)).Magnitude > 3 then
-            hum:MoveTo(State.panLocation)
-            task.wait(0.2)
-            return
+            walkTo(State.panLocation)
+            task.wait(0.1)
         end
     else
         if (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(State.panLocation.X, 0, State.panLocation.Z)).Magnitude > 3 then
             root.CFrame = CFrame.new(State.panLocation)
-            task.wait(0.2)
+            task.wait(0.3)
         end
     end
     
-    local tool = equipTool()
-    if not tool then task.wait(0.5); return end
+    local panTool = findPan()
+    if not panTool then task.wait(1); return end
     
-    local pgui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not pgui then return end
+    if panTool.Parent == LocalPlayer.Backpack then
+        humanoid:EquipTool(panTool)
+        task.wait(0.05)
+    end
     
-    local fillBar = pgui:FindFirstChild("ToolUI", true)
-        and pgui.ToolUI:FindFirstChild("FillingPan", true)
-        and pgui.ToolUI.FillingPan:FindFirstChild("Bar")
+    local equippedPan = char:FindFirstChild(panTool.Name)
+    if not equippedPan then task.wait(0.1); return end
+
+    local fillBar
+    for i = 1, 15 do
+        fillBar = LocalPlayer.PlayerGui:FindFirstChild("ToolUI", true)
+            and LocalPlayer.PlayerGui.ToolUI:FindFirstChild("FillingPan", true)
+            and LocalPlayer.PlayerGui.ToolUI.FillingPan:FindFirstChild("Bar")
+        if fillBar then break end
+        task.wait(0.1)
+    end
         
     if not fillBar then task.wait(0.5); return end
-    
-    local scriptsFolder = tool:FindFirstChild("Scripts")
-    local panRemote = scriptsFolder and scriptsFolder:FindFirstChild("Pan")
-    local shakeRemote = scriptsFolder and scriptsFolder:FindFirstChild("Shake")
-    
-    if shakeRemote then
-        local panGUI = pgui:FindFirstChild("ToolUI", true) 
-            and pgui.ToolUI:FindFirstChild("Controls")
-            and pgui.ToolUI.Controls:FindFirstChild("Pan")
-            
-        if panGUI then
-            task.spawn(function() pcall(function() panRemote:InvokeServer() end) end)
-            task.wait(0.1)
-            
-            while State.isFarming do
-                local controls = pgui:FindFirstChild("ToolUI") 
-                    and pgui.ToolUI:FindFirstChild("Controls")
-                
-                if not controls then break end
-                
-                pcall(function() shakeRemote:FireServer() end)
-                task.wait(0.1) 
-                
-                if not (char and char.Parent and getEquippedTool()) then break end
-                if not fillBar or not fillBar.Parent then break end
-                if fillBar.Size.X.Scale <= 0 then break end
+        
+    local scriptsFolder = equippedPan:FindFirstChild("Scripts")
+    if scriptsFolder then
+        local shakeRemote = scriptsFolder:FindFirstChild("Shake")
+        local panRemote = scriptsFolder:FindFirstChild("Pan")
+        
+        if shakeRemote then
+            local panGUI
+            for i = 1, 20 do
+                panGUI = LocalPlayer.PlayerGui:FindFirstChild("ToolUI", true) 
+                    and LocalPlayer.PlayerGui.ToolUI:FindFirstChild("Controls")
+                    and LocalPlayer.PlayerGui.ToolUI.Controls:FindFirstChild("Pan")
+                if panGUI then break end
+                task.wait(0.1)
             end
-        else
-            -- Fallback
-            tool:Activate()
-            pcall(function()
-                VirtualUser:CaptureController()
-                VirtualUser:Button1Down(Vector2.new(0,0), Camera.CFrame)
-                task.wait(0.05)
-                VirtualUser:Button1Up(Vector2.new(0,0), Camera.CFrame)
-            end)
-            task.wait(0.1)
+            
+            if panGUI then
+                task.spawn(function() pcall(function() panRemote:InvokeServer() end) end)
+                task.wait(0.1)
+                
+                while State.isFarming do
+                    local controls = LocalPlayer.PlayerGui:FindFirstChild("ToolUI") 
+                        and LocalPlayer.PlayerGui.ToolUI:FindFirstChild("Controls")
+                    
+                    if not controls then break end
+                    
+                    local success_shake = pcall(function() shakeRemote:FireServer() end)
+                    task.wait(0.1) 
+                    
+                    if not success_shake then task.wait(0.1) end
+                    if not (char and char.Parent and equippedPan and equippedPan.Parent) then break end
+                    if not fillBar or not fillBar.Parent then break end
+                    if fillBar.Size.X.Scale <= 0 then break end
+                end
+            end
         end
     end
+    
     task.wait(0.08)
 end
 
@@ -680,18 +880,35 @@ local function toggleAutoFarm(value)
                 local char = LocalPlayer.Character
                 if not char or not char:FindFirstChild("HumanoidRootPart") then break end
                 
+                -- Pastikan selalu megang pan agar script bisa membaca indikator UI pasir
+                local panTool = findPan()
+                if panTool and panTool.Parent == LocalPlayer.Backpack then
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if hum then 
+                        hum:EquipTool(panTool)
+                        task.wait(0.2) 
+                    end
+                end
+                
                 if shouldAutoSell() then
-                    Options.AutoFarmToggle:SetValue(false)
-                    task.wait(0.1)
-                    instantSellAll()
-                    Options.AutoFarmToggle:SetValue(true)
-                    break 
+                    task.spawn(function()
+                        -- Matikan toggle UI Auto Farm
+                        Options.AutoFarmToggle:SetValue(false)
+                        task.wait(0.5)
+                        
+                        -- Jalankan proses jual beli sampai kembali
+                        instantSellAll()
+                        
+                        -- Nyalakan lagi toggle UI Auto Farm
+                        Options.AutoFarmToggle:SetValue(true)
+                    end)
+                    break -- Matikan thread loop Auto Farm yang sedang berjalan saat ini
                 end
                 
                 if not isPanFull() then
-                    doDig()
+                    dig()
                 else
-                    doPan()
+                    pan()
                 end
             end
         end)
@@ -699,13 +916,15 @@ local function toggleAutoFarm(value)
 end
 
 -- ==========================================
--- 8. TAB 1: MAIN
+-- 8. TAB 1: MAIN (FARMING)
 -- ==========================================
-Tabs.Main:AddToggle("AutoFarmToggle", { Title = "Auto Farm", Description = "Auto Farm All (Instant)", Default = false, Callback = toggleAutoFarm })
-Tabs.Main:AddDropdown("AutoFarmMethod", { Title = "Auto Farm Method", Values = {"Legit (Walk)", "Fast (Teleport)"}, Default = "Fast (Teleport)", Multi = false })
+Tabs.Main:AddToggle("AutoFarmToggle", { Title = "Auto Farm", Description = "Auto Farm All", Default = false, Callback = toggleAutoFarm })
+
+Tabs.Main:AddDropdown("AutoFarmMethod", { Title = "Auto Farm Method", Values = {"Legit", "Fast"}, Default = "Fast", Multi = false })
 
 local waterStr = "Not set"
 local sandStr = "Not set"
+-- Placeholder agar bisa diubah isinya nanti, UI-nya ditaruh di bawah
 local locPara = nil
 
 Tabs.Main:AddButton({
@@ -742,31 +961,42 @@ locPara = Tabs.Main:AddParagraph({ Title = "ðŸ“ Saved Locations", Content = "ðŸ
 -- 9. TAB 2: AUTO-SELL
 -- ==========================================
 Tabs.Sell:AddToggle("AutoSellToggle", { Title = "Enable Auto Sell", Default = true })
+
 Tabs.Sell:AddDropdown("MerchantSelector", {
     Title = "Select Merchant",
     Values = {"Closest", "StarterTown Merchant", "RiverTown Merchant", "Delta Shady Merchant", "Cavern Merchant", "Volcano Merchant"},
     Multi = false,
     Default = 1,
 })
+
+Tabs.Sell:AddDropdown("SellMoveMethod", {
+    Title = "Metode Pergerakan Jual",
+    Values = {"Teleport (Lerp)", "Walk (Lurus)"},
+    Multi = false,
+    Default = 1,
+})
+
 Tabs.Sell:AddDropdown("AutoSellMode", {
     Title = "Auto Sell Mode",
     Values = {"Full Inventory", "Target Inventory"},
     Multi = false,
     Default = 1,
 })
+
 Tabs.Sell:AddInput("TargetInventoryValue", {
     Title = "Target Inventory Amount",
     Default = "275",
     Numeric = true,
     Finished = false,
 })
+
 Tabs.Sell:AddButton({ 
     Title = "Sell All Now (Instan)", 
     Callback = function()
         task.spawn(function()
             local wasFarming = State.isFarming
             if wasFarming then Options.AutoFarmToggle:SetValue(false) end
-            task.wait(0.2)
+            task.wait(0.5)
             instantSellAll()
             if wasFarming then Options.AutoFarmToggle:SetValue(true) end
         end)
@@ -777,13 +1007,16 @@ Tabs.Sell:AddButton({
 -- 10. TAB 3: FAVOURITE (AUTO-LOCK)
 -- ==========================================
 Tabs.Favourite:AddToggle("AutoFavoriteToggle", { Title = "Enable Auto Lock", Default = false })
+
 Tabs.Favourite:AddDropdown("LockItemName", {
     Title = "Select Items to Lock",
     Values = {"Coal", "Copper", "Iron", "Silver", "Gold", "Diamond", "Emerald", "Ruby", "Sapphire", "Amethyst", "Topaz", "Crystal", "Magma", "Meteorite", "Relic", "Fossil", "Geode"},
     Multi = true,
     Default = {},
 })
-Tabs.Favourite:AddSlider("WeightSlider", { Title = "Minimum Weight (lbs/kg)", Default = 0, Min = 0, Max = 1000, Rounding = 1 })
+
+Tabs.Favourite:AddSlider("WeightSlider", { Title = "Minimum Weight (lbs)", Default = 0, Min = 0, Max = 1000, Rounding = 1 })
+
 Tabs.Favourite:AddDropdown("RarityDropdown", {
     Title = "Minimum Rarity",
     Values = {"None", "Common", "Uncommon", "Rare", "Epic", "Legendary"},
@@ -794,15 +1027,10 @@ Tabs.Favourite:AddDropdown("RarityDropdown", {
 -- ==========================================
 -- 11. TAB 4: SHOP (REMOTE)
 -- ==========================================
-Tabs.Shop:AddDropdown("ShopItemDropdown", {
-    Title = "Pilih Alat",
-    Values = {"Starter Shovel", "Starter Pan", "Bronze Shovel", "Bronze Pan", "Iron Shovel", "Iron Pan"},
-    Multi = false,
-    Default = 1,
-})
 Tabs.Shop:AddButton({
-    Title = "Buy Remote Tool",
+    Title = "Buy Remote Tool (Shovel/Pan)",
     Callback = function()
+        -- Implementasi Shop Jarak Jauh (DOIT)
         local shopItem = Options.ShopItemDropdown and Options.ShopItemDropdown.Value
         if not shopItem then return end
         
@@ -816,6 +1044,13 @@ Tabs.Shop:AddButton({
             end
         end)
     end
+})
+
+Tabs.Shop:AddDropdown("ShopItemDropdown", {
+    Title = "Pilih Alat",
+    Values = {"Starter Shovel", "Starter Pan", "Bronze Shovel", "Bronze Pan", "Iron Shovel", "Iron Pan"}, -- Bisa disesuaikan nama itemnya
+    Multi = false,
+    Default = 1,
 })
 
 -- ==========================================
@@ -835,18 +1070,15 @@ Tabs.Teleport:AddDropdown("WaypointSelect", {
 })
 
 Tabs.Teleport:AddButton({
-    Title = "Teleport Instan",
+    Title = "Teleport to Waypoint",
     Callback = function()
         if not SelectedWaypoint then return end
-        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-        
         local waypointsFolder = Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Waypoints")
         local model = waypointsFolder and waypointsFolder:FindFirstChild(SelectedWaypoint)
         if not model then return end
         
-        local targetCFrame = model:GetPivot()
-        root.CFrame = targetCFrame * CFrame.new(0, 3, 0)
+        local targetCFrame = model.PrimaryPart and model.PrimaryPart.CFrame or model:GetPivot()
+        dynamicLerpTo(CFrame.new((targetCFrame * CFrame.new(0, 2, 0)).Position), 120)
     end
 })
 
@@ -857,9 +1089,15 @@ Tabs.Teleport:AddButton({
         local AllIDs = {}
         local foundAnything = ""
         local actualHour = os.date("!*t").hour
+        local Deleted = false
         
-        pcall(function() AllIDs = HttpService:JSONDecode(readfile("NotSameServers.json")) end)
-        if #AllIDs == 0 then table.insert(AllIDs, actualHour) pcall(function() writefile("NotSameServers.json", HttpService:JSONEncode(AllIDs)) end) end
+        local File = pcall(function()
+            AllIDs = HttpService:JSONDecode(readfile("NotSameServers.json"))
+        end)
+        if not File then
+            table.insert(AllIDs, actualHour)
+            writefile("NotSameServers.json", HttpService:JSONEncode(AllIDs))
+        end
         
         local function TPReturner()
             local Site
@@ -868,19 +1106,23 @@ Tabs.Teleport:AddButton({
             else
                 Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
             end
-            if Site.nextPageCursor and Site.nextPageCursor ~= "null" then foundAnything = Site.nextPageCursor end
-            
+            local ID = ""
+            if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
+                foundAnything = Site.nextPageCursor
+            end
             local num = 0
             for i,v in pairs(Site.data) do
                 local Possible = true
-                local ID = tostring(v.id)
+                ID = tostring(v.id)
                 if tonumber(v.maxPlayers) > tonumber(v.playing) then
                     for _,Existing in pairs(AllIDs) do
                         if num ~= 0 then
-                            if ID == tostring(Existing) then Possible = false end
+                            if ID == tostring(Existing) then
+                                Possible = false
+                            end
                         else
                             if tonumber(actualHour) ~= tonumber(Existing) then
-                                pcall(function() delfile("NotSameServers.json") AllIDs = {} table.insert(AllIDs, actualHour) end)
+                                local delFile = pcall(function() delfile("NotSameServers.json") AllIDs = {} table.insert(AllIDs, actualHour) end)
                             end
                         end
                         num = num + 1
@@ -898,9 +1140,16 @@ Tabs.Teleport:AddButton({
                 end
             end
         end
-        task.spawn(function()
-            while task.wait(0.5) do pcall(function() TPReturner() if foundAnything ~= "" then TPReturner() end end) end
-        end)
+        
+        local function Teleport()
+            while task.wait(0.5) do
+                pcall(function()
+                    TPReturner()
+                    if foundAnything ~= "" then TPReturner() end
+                end)
+            end
+        end
+        Teleport()
     end
 })
 
@@ -916,8 +1165,17 @@ table.insert(Connections, LocalPlayer.Idled:Connect(function()
         VirtualUser:Button2Up(Vector2.new(0,0), Camera.CFrame)
     end
 end))
-Tabs.Move:AddInput("DiscordWebhook", { Title = "Discord Webhook URL", Default = "", Numeric = false, Finished = false, Callback = function(v) WebhookLink = v end })
+
+Tabs.Move:AddInput("DiscordWebhook", {
+    Title = "Discord Webhook URL",
+    Default = "",
+    Numeric = false,
+    Finished = false,
+    Callback = function(v) WebhookLink = v end
+})
+
 Tabs.Move:AddToggle("LogItemsToDiscord", { Title = "Log Locked/Sold Items to Discord", Default = false, Callback = function(v) LogItems = v end })
+
 Tabs.Move:AddToggle("WalkSpeed", { Title = "WalkSpeed", Default = false, Callback = function(v) MoveState.WS = v end })
 Tabs.Move:AddSlider("WalkSpeedVal", { Title = "Speed", Default = 50, Min = 16, Max = 350, Rounding = 0, Callback = function(v) MoveState.WS_Val = v end })
 Tabs.Move:AddToggle("JumpPower", { Title = "JumpPower", Default = false, Callback = function(v) MoveState.JP = v end })
@@ -983,11 +1241,18 @@ Tabs.Settings:AddButton({
 
 SaveManager:SetLibrary(Library)
 InterfaceManager:SetLibrary(Library)
+
 InterfaceManager:SetFolder("ProspectingUI")
-SaveManager:SetFolder("Prospecting/MidasTouchV29")
+SaveManager:SetFolder("Prospecting/UltimateV28")
+
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 
 Window:SelectTab(1)
 SaveManager:LoadAutoloadConfig()
-Library:Notify({ Title = "Script Loaded!", Content = "Midas Touch (Ultimate V29)", Duration = 5 })
+
+Library:Notify({
+    Title = "Script Loaded!",
+    Content = "Ultimate V28 (Antigravity Merged)",
+    Duration = 5
+})
