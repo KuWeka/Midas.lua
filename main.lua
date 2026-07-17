@@ -25,7 +25,6 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local VirtualUser = game:GetService("VirtualUser")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local VirtualUser = game:GetService("VirtualUser")
 local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
@@ -290,48 +289,6 @@ local function walkTo(targetPosition)
     end
 end
 
-local function dynamicLerpTo(targetCFrame, customSpeed, keepFloating)
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not root then return end
-    
-    local startPos = root.Position
-    local distance = (startPos - targetCFrame.Position).Magnitude
-    local speed = customSpeed or 35
-    local duration = math.max(1.0, distance / speed) 
-    local startTime = tick()
-    
-    if hum then hum.PlatformStand = true end
-    
-    local originalCollisions = {}
-    for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            originalCollisions[part] = part.CanCollide
-            part.CanCollide = false
-        end
-    end
-    
-    local connection
-    connection = RunService.Heartbeat:Connect(function()
-        local elapsed = tick() - startTime
-        local alpha = math.clamp(elapsed / duration, 0, 1)
-        root.AssemblyLinearVelocity = Vector3.zero 
-        root.CFrame = CFrame.new(startPos:Lerp(targetCFrame.Position, alpha))
-        if alpha >= 1 then connection:Disconnect() end
-    end)
-    
-    while connection.Connected do task.wait(0.03) end
-    
-    if not keepFloating then
-        for part, state in pairs(originalCollisions) do
-            if part and part.Parent then part.CanCollide = true end -- Force true to prevent sticking
-        end
-        root.AssemblyLinearVelocity = Vector3.zero
-        if hum then hum.PlatformStand = false end
-        task.wait(0.5)
-    end
-end
 
 local merchantData = {
     {Name = "StarterTown Merchant", Path = {"NPCs", "StarterTown", "Merchant"}},
@@ -441,6 +398,7 @@ end
 local function tweenTo(targetPos)
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
     if not root then return end
     
     local startPos = root.Position
@@ -450,22 +408,43 @@ local function tweenTo(targetPos)
     local startTime = tick()
     local arrived = false
     
+    if hum then hum.PlatformStand = true end
+    
+    local originalCollisions = {}
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            originalCollisions[part] = part.CanCollide
+            part.CanCollide = false
+        end
+    end
+    
+    local noclipConn
+    noclipConn = RunService.Stepped:Connect(function()
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+        end
+    end)
+    
     local conn
     conn = RunService.Heartbeat:Connect(function()
         local elapsed = tick() - startTime
         local alpha = math.clamp(elapsed / duration, 0, 1)
-        root.AssemblyLinearVelocity = Vector3.zero 
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.CFrame = CFrame.new(startPos:Lerp(targetPos, alpha))
         
-        local currentPos = startPos:Lerp(targetPos, alpha)
-        root.CFrame = CFrame.new(currentPos)
-        
-        if alpha >= 1 then 
+        if alpha >= 1 then
             arrived = true
-            conn:Disconnect() 
+            conn:Disconnect()
         end
     end)
     
     while not arrived do task.wait(0.03) end
+    
+    if noclipConn then noclipConn:Disconnect() end
+    for part, state in pairs(originalCollisions) do
+        if part and part.Parent then part.CanCollide = state end
+    end
+    if hum then hum.PlatformStand = false end
 end
 
 local function pathfindTo(targetPos)
@@ -585,22 +564,6 @@ local function instantSellAll()
             end
         end)
         
-        local noclipConn
-        local originalCollisions = {}
-        if moveMethod == "Tween" then
-            local char = LocalPlayer.Character
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    originalCollisions[part] = part.CanCollide
-                    part.CanCollide = false
-                end
-            end
-            noclipConn = RunService.Stepped:Connect(function()
-                for _, part in ipairs(char:GetDescendants()) do
-                    if part:IsA("BasePart") then part.CanCollide = false end
-                end
-            end)
-        end
 
         root.Anchored = false
         
@@ -636,14 +599,6 @@ local function instantSellAll()
         end
         
         if spamConnection then spamConnection:Disconnect() end
-        if noclipConn then noclipConn:Disconnect() end
-        
-        if moveMethod == "Tween" then
-            local char = LocalPlayer.Character
-            for part, state in pairs(originalCollisions) do
-                if part and part.Parent then part.CanCollide = state end
-            end
-        end
         
         -- Discord Webhook
         if LogItems and WebhookLink ~= "" then
@@ -665,7 +620,6 @@ end
 -- ==========================================
 -- 6. AUTO FAVOURITE LOGIC (V27 FIXED)
 -- ==========================================
-local pendingLocks = {}
 
 local function scanAndLockBackpack()
     -- Fitur ini dikosongkan untuk dibangun ulang dari 0 nanti
@@ -683,28 +637,6 @@ end)
 -- ==========================================
 -- 7. FAST MODE CORE LOOP (DOIT)
 -- ==========================================
-local function equipTool(toolName)
-    local char = LocalPlayer.Character
-    if not char then return false end
-    
-    local tool = char:FindFirstChildOfClass("Tool")
-    if tool and tool.Name:lower():match(toolName:lower()) then return true end
-    
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if backpack then
-        for _, t in ipairs(backpack:GetChildren()) do
-            if t:IsA("Tool") and t.Name:lower():match(toolName:lower()) then
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum:EquipTool(t)
-                    task.wait(0.2)
-                    return true
-                end
-            end
-        end
-    end
-    return false
-end
 
 local function dig()
     local char = LocalPlayer.Character
@@ -1133,8 +1065,8 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
-    Title = "Update Terbaru (18 Juli 2026, 00:50)",
-    Content = "1. Memperbaiki logika pembacaan Inventory (Bug Auto Sell tidak ter-trigger) dengan membaca UI text secara langsung.\n2. Auto Sell kini akan instan aktif apabila muncul peringatan 'Your backpack is full!'"
+    Title = "Update Terbaru (18 Juli 2026, 01:10)",
+    Content = "1. Fix: Duplikat variabel VirtualUser & pendingLocks dihapus.\n2. Fix: tweenTo kini memiliki Noclip bawaan agar tidak tersangkut tembok.\n3. Fix: Noclip redundan di Auto Sell dihapus (sudah ditangani tweenTo).\n4. Cleanup: Dead code (dynamicLerpTo & equipTool) dihapus.\n5. Polish: Script lebih ringan dan stabil."
 })
 
 Tabs.Settings:AddButton({
