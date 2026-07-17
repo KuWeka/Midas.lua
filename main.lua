@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
@@ -155,6 +156,20 @@ local antiAFK = false
 -- ==========================================
 -- 3. UTILITIES & DATA SCRAPING
 -- ==========================================
+local function simulateMouseDown(guiObject)
+    if not guiObject then return end
+    local x = guiObject.AbsolutePosition.X + (guiObject.AbsoluteSize.X / 2)
+    local y = guiObject.AbsolutePosition.Y + (guiObject.AbsoluteSize.Y / 2)
+    VirtualInputManager:SendMouseButtonEvent(x, y + 36, 0, true, guiObject, 1)
+end
+
+local function simulateMouseUp(guiObject)
+    if not guiObject then return end
+    local x = guiObject.AbsolutePosition.X + (guiObject.AbsoluteSize.X / 2)
+    local y = guiObject.AbsolutePosition.Y + (guiObject.AbsoluteSize.Y / 2)
+    VirtualInputManager:SendMouseButtonEvent(x, y + 36, 0, false, guiObject, 1)
+end
+
 local function getEquippedTool()
     local char = LocalPlayer.Character
     return char and char:FindFirstChildOfClass("Tool")
@@ -497,30 +512,83 @@ local function doDig()
     local tool = equipTool()
     if not tool then task.wait(0.5); return end
     
-    -- Paksa aktifkan tool layaknya klik kiri
-    tool:Activate()
-    pcall(function()
-        VirtualUser:CaptureController()
-        VirtualUser:Button1Down(Vector2.new(0,0), Camera.CFrame)
-        task.wait(0.05)
-        VirtualUser:Button1Up(Vector2.new(0,0), Camera.CFrame)
-    end)
+    local pgui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not pgui then return end
     
-    local scriptsFolder = tool:FindFirstChild("Scripts")
-    local digRemote = scriptsFolder and (scriptsFolder:FindFirstChild("ToggleShovelActive") or scriptsFolder:FindFirstChild("Dig"))
+    local fillBar = pgui:FindFirstChild("ToolUI", true)
+        and pgui.ToolUI:FindFirstChild("FillingPan", true)
+        and pgui.ToolUI.FillingPan:FindFirstChild("Bar")
     
-    if digRemote then
-        pcall(function()
-            if digRemote:IsA("RemoteEvent") then 
-                digRemote:FireServer(true)
-                digRemote:FireServer()
-            elseif digRemote:IsA("RemoteFunction") then 
-                digRemote:InvokeServer(true)
-                digRemote:InvokeServer()
+    if not fillBar then task.wait(0.5); return end
+
+    if method == "Fast (Teleport)" then
+        local collectButton = pgui:FindFirstChild("ToolUI", true)
+            and pgui.ToolUI:FindFirstChild("Controls")
+            and pgui.ToolUI.Controls:FindFirstChild("Collect Deposit")
+            
+        local scriptsFolder = tool:FindFirstChild("Scripts")
+        local collectRemote = scriptsFolder and scriptsFolder:FindFirstChild("Collect")
+        
+        if collectButton and collectRemote then
+            simulateMouseDown(collectButton)
+            while fillBar.Size.X.Scale < 1 and State.isFarming do
+                pcall(function() collectRemote:InvokeServer(1) end)
+                task.wait(0.1)
+                if not (char and char.Parent and getEquippedTool()) then break end
             end
-        end)
+            simulateMouseUp(collectButton)
+        else
+            -- Fallback jika UI tidak ada
+            tool:Activate()
+            pcall(function()
+                VirtualUser:CaptureController()
+                VirtualUser:Button1Down(Vector2.new(0,0), Camera.CFrame)
+                task.wait(0.05)
+                VirtualUser:Button1Up(Vector2.new(0,0), Camera.CFrame)
+            end)
+            task.wait(0.1)
+        end
+    else
+        -- Legit Dig (Hold DigBar)
+        while fillBar.Size.X.Scale < 1 and State.isFarming do
+            local digBar = pgui:FindFirstChild("ToolUI", true)
+                and pgui.ToolUI:FindFirstChild("DigBar", true)
+            if not digBar then break end
+            
+            simulateMouseDown(digBar)
+            local digBarLine, perfectZone
+            local wait_started = tick()
+            local panBecameFull = false
+            
+            while (tick() - wait_started) < 2.0 and not (digBarLine and perfectZone) do
+                if fillBar.Size.X.Scale >= 1 then panBecameFull = true; break end
+                digBarLine = digBar:FindFirstChild("Line")
+                if not perfectZone then
+                    for _, child in ipairs(digBar:GetChildren()) do
+                        if child:IsA("Frame") and child.BackgroundColor3.G > 0.5 and child.BackgroundColor3.R < 0.3 and child.BackgroundColor3.B < 0.3 then
+                            perfectZone = child
+                            break
+                        end
+                    end
+                end
+                task.wait(0.05)
+            end
+            
+            if not panBecameFull and digBarLine and perfectZone then
+                local topY = perfectZone.Position.Y.Scale
+                local bottomY = topY + perfectZone.Size.Y.Scale
+                local timing_started = tick()
+                while (tick() - timing_started) < 3 and State.isFarming do
+                    if fillBar.Size.X.Scale >= 1 then break end
+                    if not (digBarLine and digBarLine.Visible) then break end
+                    if digBarLine.Position.Y.Scale >= topY and digBarLine.Position.Y.Scale <= bottomY then break end
+                    task.wait(0.01)
+                end
+            end
+            simulateMouseUp(digBar)
+            task.wait(0.05)
+        end
     end
-    task.wait(0.1)
 end
 
 local function doPan()
@@ -546,42 +614,54 @@ local function doPan()
     local tool = equipTool()
     if not tool then task.wait(0.5); return end
     
-    -- Paksa aktifkan tool layaknya klik kiri
-    tool:Activate()
-    pcall(function()
-        VirtualUser:CaptureController()
-        VirtualUser:Button1Down(Vector2.new(0,0), Camera.CFrame)
-        task.wait(0.05)
-        VirtualUser:Button1Up(Vector2.new(0,0), Camera.CFrame)
-    end)
+    local pgui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not pgui then return end
+    
+    local fillBar = pgui:FindFirstChild("ToolUI", true)
+        and pgui.ToolUI:FindFirstChild("FillingPan", true)
+        and pgui.ToolUI.FillingPan:FindFirstChild("Bar")
+        
+    if not fillBar then task.wait(0.5); return end
     
     local scriptsFolder = tool:FindFirstChild("Scripts")
     local panRemote = scriptsFolder and scriptsFolder:FindFirstChild("Pan")
     local shakeRemote = scriptsFolder and scriptsFolder:FindFirstChild("Shake")
-    local collectRemote = scriptsFolder and scriptsFolder:FindFirstChild("Collect")
     
-    if panRemote and shakeRemote then
-        pcall(function()
-            if panRemote:IsA("RemoteFunction") then panRemote:InvokeServer()
-            elseif panRemote:IsA("RemoteEvent") then panRemote:FireServer() end
-        end)
-        
-        while State.isFarming and isPanFull() do
+    if shakeRemote then
+        local panGUI = pgui:FindFirstChild("ToolUI", true) 
+            and pgui.ToolUI:FindFirstChild("Controls")
+            and pgui.ToolUI.Controls:FindFirstChild("Pan")
+            
+        if panGUI then
+            task.spawn(function() pcall(function() panRemote:InvokeServer() end) end)
+            task.wait(0.1)
+            
+            while State.isFarming do
+                local controls = pgui:FindFirstChild("ToolUI") 
+                    and pgui.ToolUI:FindFirstChild("Controls")
+                
+                if not controls then break end
+                
+                pcall(function() shakeRemote:FireServer() end)
+                task.wait(0.1) 
+                
+                if not (char and char.Parent and getEquippedTool()) then break end
+                if not fillBar or not fillBar.Parent then break end
+                if fillBar.Size.X.Scale <= 0 then break end
+            end
+        else
+            -- Fallback
+            tool:Activate()
             pcall(function()
-                if shakeRemote:IsA("RemoteEvent") then shakeRemote:FireServer()
-                elseif shakeRemote:IsA("RemoteFunction") then shakeRemote:InvokeServer() end
+                VirtualUser:CaptureController()
+                VirtualUser:Button1Down(Vector2.new(0,0), Camera.CFrame)
+                task.wait(0.05)
+                VirtualUser:Button1Up(Vector2.new(0,0), Camera.CFrame)
             end)
-            task.wait(0.05)
-        end
-        
-        if collectRemote then
-            pcall(function()
-                if collectRemote:IsA("RemoteFunction") then collectRemote:InvokeServer(1)
-                elseif collectRemote:IsA("RemoteEvent") then collectRemote:FireServer(1) end
-            end)
+            task.wait(0.1)
         end
     end
-    task.wait(0.1)
+    task.wait(0.08)
 end
 
 local function toggleAutoFarm(value)
