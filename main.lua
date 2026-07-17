@@ -1,5 +1,5 @@
 -- ==============================================================================
--- PROSPECTING! Midas Touch (By Weka)
+-- PROSPECTING! Midas Touch (Ultimate V29)
 -- Features: Auto Farm, Movement, Auto Sell, Auto Favourite, Teleport, Server hop, Shop, Settings
 -- ==============================================================================
 
@@ -124,13 +124,13 @@ local Window = Library:CreateWindow({
 })
 
 local Tabs = {
-    Main = Window:AddTab({ Title = "Main", Icon = "shovel" }),
-    Move = Window:AddTab({ Title = "Movement & Misc", Icon = "menu" }),
-    Sell = Window:AddTab({ Title = "Auto Sell", Icon = "dollar-sign" }),
-    Favourite = Window:AddTab({ Title = "Auto Lock", Icon = "heart" }),
-    Shop = Window:AddTab({ Title = "Shop", Icon = "shopping-cart" }),
-    Teleport = Window:AddTab({ Title = "Teleport", Icon = "map" }),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+    Main = Window:AddTab({ Title = "Main ⛏️", Icon = "home" }),
+    Move = Window:AddTab({ Title = "Movement & Misc 🏃", Icon = "footprints" }),
+    Sell = Window:AddTab({ Title = "Auto Sell 💰", Icon = "shopping-cart" }),
+    Favourite = Window:AddTab({ Title = "Auto Lock 🔒", Icon = "heart" }),
+    Shop = Window:AddTab({ Title = "Shop 🏪", Icon = "shopping-cart" }),
+    Teleport = Window:AddTab({ Title = "Teleport 🗺️", Icon = "map" }),
+    Settings = Window:AddTab({ Title = "Settings ⚙️", Icon = "settings" })
 }
 
 local Options = Library.Options
@@ -861,4 +861,4 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 
 Window:SelectTab(1)
 SaveManager:LoadAutoloadConfig()
-Library:Notify({ Title = "Script Loaded!", Content = "Midas Touch (By Weka)", Duration = 5 })
+Library:Notify({ Title = "Script Loaded!", Content = "Midas Touch (Ultimate V29)", Duration = 5 })
