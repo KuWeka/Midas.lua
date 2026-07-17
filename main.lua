@@ -467,8 +467,6 @@ local function tweenFlybySell(merchantModel, merchantPos, originalPos)
         safePos = merchantPos + Vector3.new(3, 1, 0)
     end
     
-    root.Anchored = true
-    
     local function fireSell()
         pcall(function()
             local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
@@ -508,18 +506,8 @@ local function tweenFlybySell(merchantModel, merchantPos, originalPos)
         
         while not arrived do task.wait(0.03) end
     end
-    local function skyTrip(startPos, endPos)
-        local skyAltitude = math.max(startPos.Y, endPos.Y) + 150
-        local skyStart = Vector3.new(startPos.X, skyAltitude, startPos.Z)
-        local skyEnd = Vector3.new(endPos.X, skyAltitude, endPos.Z)
-        
-        singleTrip(startPos, skyStart)
-        singleTrip(skyStart, skyEnd)
-        singleTrip(skyEnd, endPos)
-    end
-    
-    skyTrip(root.Position, safePos)
-    skyTrip(root.Position, originalPos.Position)
+    singleTrip(root.Position, safePos)
+    singleTrip(root.Position, originalPos.Position)
     
     if noclipConn then noclipConn:Disconnect() end
     
@@ -1109,8 +1097,8 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
-    Title = "Update Terbaru (17 Juli 2026, 23:36)",
-    Content = "1. Perubahan pola Instant (TP) Auto Sell: Karakter kini akan berteleportasi dan mengambang di atas kepala Merchant, men-spam Remote Event selama 1-2 detik, lalu kembali ke posisi awal.\n2. Penambahan metode 'Sky Tween' (Elevasi 150+): Karakter kini akan selalu terbang melambung ke langit terlebih dahulu sebelum melesat ke tujuan untuk menghindari semua halangan/tembok fisik secara total agar tidak tertangkap sensor rollback Anti-Cheat Roblox.\n3. Penambahan metode 'Anchored = true' pada Tween Flyby.\n4. Pengecualian Traveling Merchant & Shard Merchant dari sistem Auto Sell.\n5. Penambahan tombol Refresh Nearest Merchant."
+    Title = "Update Terbaru (17 Juli 2026, 23:44)",
+    Content = "1. Revert metode 'Tween' kembali ke versi awal (garis lurus dengan Stepped Noclip, tanpa Anchored dan tanpa Sky Tween)."
 })
 
 Tabs.Settings:AddButton({
