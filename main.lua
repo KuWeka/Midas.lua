@@ -562,11 +562,14 @@ local function instantSellAll()
             tweenFlybySell(merchantModel, merchantPos, originalCFrame)
         else
             if needToMove then
-                local safePos
-                if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
-                    safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
+                if moveMethod == "Instant (TP)" then
+                    safePos = merchantPos + Vector3.new(0, 15, 0)
                 else
-                    safePos = merchantPos + Vector3.new(3, 1, 0)
+                    if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
+                        safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
+                    else
+                        safePos = merchantPos + Vector3.new(3, 1, 0)
+                    end
                 end
                 
                 if moveMethod == "Instant (TP)" then
@@ -580,16 +583,27 @@ local function instantSellAll()
                 task.wait(0.5)
             end
             
-            pcall(function()
-                local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
-                local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
-                if sellRemote then
-                    if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
-                    elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
-                end
-            end)
+            local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
+            local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
             
-            task.wait(1.5)
+            if sellRemote then
+                if needToMove and moveMethod == "Instant (TP)" then
+                    local spamEndTime = tick() + 1.5
+                    while tick() < spamEndTime do
+                        pcall(function()
+                            if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
+                            elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
+                        end)
+                        task.wait(0.2)
+                    end
+                else
+                    pcall(function()
+                        if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
+                        elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
+                    end)
+                    task.wait(1.5)
+                end
+            end
             
             if needToMove then
                 if moveMethod == "Instant (TP)" then
@@ -1095,8 +1109,8 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
-    Title = "Update Terbaru (17 Juli 2026, 23:17)",
-    Content = "1. Penambahan metode 'Sky Tween' (Elevasi 150+): Karakter kini akan selalu terbang melambung ke langit terlebih dahulu sebelum melesat ke tujuan untuk menghindari semua halangan/tembok fisik secara total agar tidak tertangkap sensor rollback Anti-Cheat Roblox.\n2. Penambahan metode 'Anchored = true' pada Tween Flyby.\n3. Pengecualian Traveling Merchant & Shard Merchant dari sistem Auto Sell.\n4. Penambahan tombol Refresh Nearest Merchant."
+    Title = "Update Terbaru (17 Juli 2026, 23:36)",
+    Content = "1. Perubahan pola Instant (TP) Auto Sell: Karakter kini akan berteleportasi dan mengambang di atas kepala Merchant, men-spam Remote Event selama 1-2 detik, lalu kembali ke posisi awal.\n2. Penambahan metode 'Sky Tween' (Elevasi 150+): Karakter kini akan selalu terbang melambung ke langit terlebih dahulu sebelum melesat ke tujuan untuk menghindari semua halangan/tembok fisik secara total agar tidak tertangkap sensor rollback Anti-Cheat Roblox.\n3. Penambahan metode 'Anchored = true' pada Tween Flyby.\n4. Pengecualian Traveling Merchant & Shard Merchant dari sistem Auto Sell.\n5. Penambahan tombol Refresh Nearest Merchant."
 })
 
 Tabs.Settings:AddButton({
