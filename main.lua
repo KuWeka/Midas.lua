@@ -203,24 +203,21 @@ end
 local function getInventoryStats()
     local pgui = LocalPlayer:FindFirstChild("PlayerGui")
     if pgui then
+        local invSpace = pgui:FindFirstChild("ToolUI") and pgui.ToolUI:FindFirstChild("FillingPan") and pgui.ToolUI.FillingPan:FindFirstChild("InventorySpace")
+        if invSpace and invSpace:IsA("TextLabel") then
+            local text = invSpace.Text:gsub("<[^>]->", ""):gsub(",", "")
+            local curStr, maxStr = string.match(text, "^%s*(%d+)%s*/%s*(%d+)%s*$")
+            if curStr and maxStr then
+                return tonumber(curStr), tonumber(maxStr)
+            end
+        end
+        
         for _, desc in ipairs(pgui:GetDescendants()) do
-            if desc:IsA("TextLabel") and desc.Visible then
+            if desc:IsA("TextLabel") and desc.Visible and (desc.Name == "InventorySpace" or desc.Name == "InventoryText") then
                 local text = desc.Text:gsub("<[^>]->", ""):gsub(",", "")
                 local curStr, maxStr = string.match(text, "^%s*(%d+)%s*/%s*(%d+)%s*$")
                 if curStr and maxStr then
-                    local cur, max = tonumber(curStr), tonumber(maxStr)
-                    local isPan = false
-                    local p = desc.Parent
-                    while p and p ~= pgui do
-                        if p.Name == "FillingPan" or p.Name == "DigBar" or p.Name == "ToolUI" then
-                            isPan = true
-                            break
-                        end
-                        p = p.Parent
-                    end
-                    if not isPan and max > 10 then 
-                        return cur, max
-                    end
+                    return tonumber(curStr), tonumber(maxStr)
                 end
             end
         end
