@@ -436,7 +436,6 @@ local function shouldAutoSell()
     return false
 end
 
-local function tweenFlybySell(merchantModel, merchantPos, originalPos)
 local lastSellAttempt = 0
 local function instantSellAll()
     if State.isSelling then return end
