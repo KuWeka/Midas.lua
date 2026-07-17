@@ -437,92 +437,6 @@ local function shouldAutoSell()
 end
 
 local function tweenFlybySell(merchantModel, merchantPos, originalPos)
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not root then return end
-    
-    if hum then hum.PlatformStand = true end
-    local originalCollisions = {}
-    for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            originalCollisions[part] = part.CanCollide
-            part.CanCollide = false
-        end
-    end
-    
-    local noclipConn = RunService.Stepped:Connect(function()
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end)
-    
-    local speed = 35
-    local safePos
-    if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
-        safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
-    else
-        safePos = merchantPos + Vector3.new(3, 1, 0)
-    end
-    
-    local function fireSell()
-        pcall(function()
-            local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
-            local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
-            if sellRemote then
-                if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
-                elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
-            end
-        end)
-    end
-
-    local function singleTrip(startPos, endPos)
-        local distance = (startPos - endPos).Magnitude
-        local duration = math.max(1.0, distance / speed)
-        local startTime = tick()
-        local arrived = false
-        
-        local conn
-        conn = RunService.Heartbeat:Connect(function()
-            local elapsed = tick() - startTime
-            local alpha = math.clamp(elapsed / duration, 0, 1)
-            root.AssemblyLinearVelocity = Vector3.zero 
-            
-            local currentPos = startPos:Lerp(endPos, alpha)
-            root.CFrame = CFrame.new(currentPos)
-            
-            local distToMerchant = (currentPos - merchantPos).Magnitude
-            if distToMerchant <= 49.9 then
-                fireSell()
-            end
-            
-            if alpha >= 1 then 
-                arrived = true
-                conn:Disconnect() 
-            end
-        end)
-        
-        while not arrived do task.wait(0.03) end
-    end
-    singleTrip(root.Position, safePos)
-    singleTrip(root.Position, originalPos.Position)
-    
-    if noclipConn then noclipConn:Disconnect() end
-    
-    root.CFrame = originalPos
-    task.wait(0.1)
-    
-    for part, state in pairs(originalCollisions) do
-        if part and part.Parent then part.CanCollide = state end
-    end
-    root.Anchored = false
-    root.AssemblyLinearVelocity = Vector3.zero
-    if hum then hum.PlatformStand = false end
-    task.wait(0.1)
-end
-
 local lastSellAttempt = 0
 local function instantSellAll()
     if State.isSelling then return end
@@ -546,71 +460,85 @@ local function instantSellAll()
         local needToMove = merchantDist > 45
         local moveMethod = Options.SellMoveMethod and Options.SellMoveMethod.Value or "Instant (TP)"
         
-        if needToMove and moveMethod == "Tween" then
-            tweenFlybySell(merchantModel, merchantPos, originalCFrame)
+        local safePos
+        if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
+            safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
         else
-            if needToMove then
-                if moveMethod == "Instant (TP)" then
-                    safePos = merchantPos + Vector3.new(0, 15, 0)
-                else
-                    if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
-                        safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
-                    else
-                        safePos = merchantPos + Vector3.new(3, 1, 0)
-                    end
-                end
-                
-                if moveMethod == "Instant (TP)" then
-                    root.CFrame = CFrame.new(safePos)
-                    task.wait(0.1)
-                elseif moveMethod == "PathFind" then
-                    pathfindTo(safePos)
-                else
-                    walkTo(safePos)
-                end
-                
-                root.Anchored = true
-                task.wait(0.5)
-            end
-            
-            local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
-            local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
-            
-            if sellRemote then
-                if needToMove and moveMethod == "Instant (TP)" then
-                    local spamEndTime = tick() + 1.5
-                    while tick() < spamEndTime do
-                        pcall(function()
-                            if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
-                            elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
-                        end)
-                        task.wait(0.2)
-                    end
-                else
-                    pcall(function()
+            safePos = merchantPos + Vector3.new(3, 1, 0)
+        end
+        
+        local spamConnection
+        spamConnection = RunService.Heartbeat:Connect(function()
+            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root and (root.Position - merchantPos).Magnitude <= 49.9 then
+                pcall(function()
+                    local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
+                    local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
+                    if sellRemote then
                         if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
                         elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
-                    end)
-                    task.wait(1.5)
+                    end
+                end)
+            end
+        end)
+        
+        local noclipConn
+        local originalCollisions = {}
+        if moveMethod == "Tween" then
+            local char = LocalPlayer.Character
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    originalCollisions[part] = part.CanCollide
+                    part.CanCollide = false
                 end
             end
-            
-            if needToMove then
-                if moveMethod == "Instant (TP)" then
-                    root.Anchored = false
-                    root.CFrame = originalCFrame
-                    task.wait(0.1)
-                    root.Anchored = true
-                    root.AssemblyLinearVelocity = Vector3.zero
-                    task.wait(0.1)
-                    root.Anchored = false
-                elseif moveMethod == "PathFind" then
-                    root.Anchored = false
-                    pathfindTo(originalCFrame.Position)
-                else
-                    root.Anchored = false
-                    walkTo(originalCFrame.Position)
+            noclipConn = RunService.Stepped:Connect(function()
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
                 end
+            end)
+        end
+
+        root.Anchored = false
+        
+        if needToMove then
+            if moveMethod == "Instant (TP)" then
+                root.CFrame = CFrame.new(safePos)
+                task.wait(1.5)
+            elseif moveMethod == "Tween" then
+                tweenTo(safePos)
+                task.wait(1.5)
+            elseif moveMethod == "PathFind" then
+                pathfindTo(safePos)
+                task.wait(1.5)
+            else
+                walkTo(safePos)
+                task.wait(1.5)
+            end
+            
+            if moveMethod == "Instant (TP)" then
+                root.CFrame = originalCFrame
+                root.Anchored = true
+                task.wait(0.1)
+                root.Anchored = false
+            elseif moveMethod == "Tween" then
+                tweenTo(originalCFrame.Position)
+            elseif moveMethod == "PathFind" then
+                pathfindTo(originalCFrame.Position)
+            else
+                walkTo(originalCFrame.Position)
+            end
+        else
+            task.wait(1.5)
+        end
+        
+        if spamConnection then spamConnection:Disconnect() end
+        if noclipConn then noclipConn:Disconnect() end
+        
+        if moveMethod == "Tween" then
+            local char = LocalPlayer.Character
+            for part, state in pairs(originalCollisions) do
+                if part and part.Parent then part.CanCollide = state end
             end
         end
         
@@ -1102,8 +1030,8 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
-    Title = "Update Terbaru (18 Juli 2026, 00:03)",
-    Content = "1. Penambahan fitur AI PathfindingService untuk pergerakan Auto Sell secara cerdas.\n2. Revert metode 'Tween' kembali ke versi awal (garis lurus dengan Stepped Noclip, tanpa Anchored dan tanpa Sky Tween)."
+    Title = "Update Terbaru (18 Juli 2026, 00:15)",
+    Content = "1. Merombak total logika Spam SellAll: Semua metode pergerakan (PathFind, Walk, Tween, Instant TP) kini otomatis memiliki sistem 'Spam Sell saat memasuki area 49.9 studs' seperti pada blueprint gambar.\n2. Memperbaiki bug PathFind & Walk yang sering gagal berjalan karena karakter terkunci (Anchored) oleh sistem farming sebelumnya.\n3. Fitur 'Sell All Now' kini juga dijamin 100% menggunakan metode pergerakan pilihan di dropdown."
 })
 
 Tabs.Settings:AddButton({
