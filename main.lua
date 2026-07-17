@@ -500,72 +500,7 @@ end
 local pendingLocks = {}
 
 local function scanAndLockBackpack()
-    local pgui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not pgui then return end
-    
-    local gridFrame = pgui:FindFirstChild("BackpackGui")
-        and pgui.BackpackGui:FindFirstChild("Backpack")
-        and pgui.BackpackGui.Backpack:FindFirstChild("Inventory")
-        and pgui.BackpackGui.Backpack.Inventory:FindFirstChild("ScrollingFrame")
-        and pgui.BackpackGui.Backpack.Inventory.ScrollingFrame:FindFirstChild("UIGridFrame")
-        
-    if not gridFrame then return end
-
-    local rarityValues = { ["Legendary"] = 5, ["Epic"] = 4, ["Rare"] = 3, ["Uncommon"] = 2, ["Common"] = 1 }
-    local selectedRarityStr = Options.RarityDropdown and Options.RarityDropdown.Value or "None"
-    local selectedRarityWeight = rarityValues[selectedRarityStr] or 0
-    local minWeight = Options.WeightSlider and Options.WeightSlider.Value or 0
-    local selectedNames = Options.LockItemName and Options.LockItemName.Value or {}
-    
-    for _, item in ipairs(gridFrame:GetChildren()) do
-        if item:IsA("Frame") and not pendingLocks[item] then
-            -- Verify it's not locked via UI indicators
-            local isLocked = item:FindFirstChild("LockedIcon") or item:FindFirstChild("LockedStrokeFrame")
-            if not isLocked then
-                local itemNameLabel = item:FindFirstChild("ToolName")
-                local toolWeightLabel = item:FindFirstChild("ToolWeight")
-                
-                if itemNameLabel and toolWeightLabel then
-                    local itemName = itemNameLabel.Text
-                    local weightText = toolWeightLabel.Text
-                    local actualWeight = tonumber(string.match(weightText, "([%d%.]+)")) or 0
-                    
-                    local actualRarityStr = "Common"
-                    local newTooltip = item:FindFirstChild("NewTooltip")
-                    if newTooltip then
-                        local rarityLabel = newTooltip:FindFirstChild("Stats") and newTooltip.Stats:FindFirstChild("Rarity") and newTooltip.Stats.Rarity:FindFirstChild("RarityText")
-                        if rarityLabel then
-                            actualRarityStr = rarityLabel.Text
-                        end
-                    end
-                    local actualRarityWeight = rarityValues[actualRarityStr] or 0
-                    
-                    local shouldLock = false
-                    if minWeight > 0 and actualWeight >= minWeight then shouldLock = true end
-                    if selectedRarityWeight > 0 and actualRarityWeight >= selectedRarityWeight then shouldLock = true end
-                    for selectedName, isSelected in pairs(selectedNames) do
-                        if isSelected and string.lower(itemName):match(string.lower(selectedName)) then
-                            shouldLock = true
-                            break
-                        end
-                    end
-                    
-                    if shouldLock then
-                        pendingLocks[item] = tick()
-                        pcall(function()
-                            local lockRemote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Inventory") and ReplicatedStorage.Remotes.Inventory:FindFirstChild("ToggleLock")
-                            if lockRemote then
-                                if lockRemote:IsA("RemoteFunction") then lockRemote:InvokeServer(item.Name)
-                                elseif lockRemote:IsA("RemoteEvent") then lockRemote:FireServer(item.Name) end
-                            end
-                        end)
-                        -- Timeout to prevent deadlock
-                        task.delay(1, function() pendingLocks[item] = nil end)
-                    end
-                end
-            end
-        end
-    end
+    -- Fitur ini dikosongkan untuk dibangun ulang dari 0 nanti
 end
 
 -- Loop Anti-Deadlock untuk Lock
@@ -573,13 +508,6 @@ task.spawn(function()
     while task.wait(0.5) do
         if Options.AutoFavoriteToggle and Options.AutoFavoriteToggle.Value then
             scanAndLockBackpack()
-            
-            -- Clear deadlock pending locks (Timeout 3 detik)
-            for item, timeStarted in pairs(pendingLocks) do
-                if tick() - timeStarted > 3 then
-                    pendingLocks[item] = nil
-                end
-            end
         end
     end
 end)
@@ -934,23 +862,7 @@ Tabs.Sell:AddButton({
 -- ==========================================
 -- 10. TAB 3: FAVOURITE (AUTO-LOCK)
 -- ==========================================
-Tabs.Favourite:AddToggle("AutoFavoriteToggle", { Title = "Enable Auto Lock", Default = false })
-
-Tabs.Favourite:AddDropdown("LockItemName", {
-    Title = "Select Items to Lock",
-    Values = {"Coal", "Copper", "Iron", "Silver", "Gold", "Diamond", "Emerald", "Ruby", "Sapphire", "Amethyst", "Topaz", "Crystal", "Magma", "Meteorite", "Relic", "Fossil", "Geode"},
-    Multi = true,
-    Default = {},
-})
-
-Tabs.Favourite:AddSlider("WeightSlider", { Title = "Minimum Weight (lbs)", Default = 0, Min = 0, Max = 1000, Rounding = 1 })
-
-Tabs.Favourite:AddDropdown("RarityDropdown", {
-    Title = "Minimum Rarity",
-    Values = {"None", "Common", "Uncommon", "Rare", "Epic", "Legendary"},
-    Multi = false,
-    Default = 1,
-})
+-- UI dinonaktifkan sementara dan akan dibangun ulang dari 0
 
 -- ==========================================
 -- 11. TAB 4: SHOP (REMOTE)
