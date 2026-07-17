@@ -353,13 +353,15 @@ local function getTargetMerchant()
         
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if obj:IsA("Model") and (obj.Name:match("Merchant") or obj.Name:match("Seller")) then
-                local hrp = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
-                if hrp then
-                    local dist = (root.Position - hrp.Position).Magnitude
-                    if dist < minDist then
-                        minDist = dist
-                        closestModel = obj
-                        closestPos = hrp.Position
+                if not obj.Name:match("Traveling") and not obj.Name:match("Shard") then
+                    local hrp = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
+                    if hrp then
+                        local dist = (root.Position - hrp.Position).Magnitude
+                        if dist < minDist then
+                            minDist = dist
+                            closestModel = obj
+                            closestPos = hrp.Position
+                        end
                     end
                 end
             end
@@ -958,6 +960,22 @@ Tabs.Sell:AddDropdown("MerchantSelector", {
     Values = {"Closest", "StarterTown Merchant", "RiverTown Merchant", "Delta Shady Merchant", "Cavern Merchant", "Volcano Merchant"},
     Multi = false,
     Default = 1,
+})
+
+Tabs.Sell:AddButton({
+    Title = "Refresh Nearest Merchant",
+    Description = "Memaksa pencarian ulang merchant terdekat",
+    Callback = function()
+        cachedMerchantModel = nil
+        cachedMerchantPos = nil
+        merchantCacheTime = 0
+        local m, p, d = getTargetMerchant()
+        if m then
+            Library:Notify({ Title = "Refreshed", Content = "Merchant terdekat: " .. m.Name .. "\nJarak: " .. math.round(d) .. " studs", Duration = 3 })
+        else
+            Library:Notify({ Title = "Not Found", Content = "Tidak ada merchant di sekitarmu!", Duration = 3 })
+        end
+    end
 })
 
 Tabs.Sell:AddDropdown("SellMoveMethod", {
