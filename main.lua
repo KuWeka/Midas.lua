@@ -452,30 +452,56 @@ local function instantSellAll()
             return
         end
         
-        -- INSTANT TELEPORT
-        root.CFrame = CFrame.new(merchantPos + Vector3.new(3, 1, 0))
-        task.wait(0.1)
-        root.Anchored = true
-        task.wait(0.1)
-        
-        -- INSTANT SELL REMOTE
-        local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
-        local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
-        if sellRemote then
-            if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
-            elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
+        local safePos
+        if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
+            safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
+        else
+            safePos = merchantPos + Vector3.new(3, 1, 0)
         end
         
-        task.wait(0.3)
+        local moveMethod = Options.SellMoveMethod and Options.SellMoveMethod.Value or "Instant (TP)"
+        if moveMethod == "Instant (TP)" then
+            root.CFrame = CFrame.new(safePos)
+            task.wait(0.1)
+        elseif moveMethod == "Tween" then
+            dynamicLerpTo(CFrame.new(safePos))
+        else
+            walkTo(safePos)
+        end
         
-        -- INSTANT RETURN
-        root.Anchored = false
-        root.CFrame = originalCFrame
-        task.wait(0.1)
         root.Anchored = true
-        root.AssemblyLinearVelocity = Vector3.zero
-        task.wait(0.1)
+        task.wait(0.5)
+        
+        pcall(function()
+            local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
+            local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
+            if sellRemote then
+                if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
+                elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
+            end
+        end)
+        
+        task.wait(1.5)
+        
         root.Anchored = false
+        task.wait(0.2)
+        
+        if moveMethod == "Instant (TP)" then
+            root.CFrame = originalCFrame
+            task.wait(0.1)
+            root.Anchored = true
+            root.AssemblyLinearVelocity = Vector3.zero
+            task.wait(0.1)
+            root.Anchored = false
+        elseif moveMethod == "Tween" then
+            dynamicLerpTo(originalCFrame)
+            root.Anchored = true
+            root.AssemblyLinearVelocity = Vector3.zero
+            task.wait(0.25)
+            root.Anchored = false
+        else
+            walkTo(originalCFrame.Position)
+        end
         
         -- Discord Webhook
         if LogItems and WebhookLink ~= "" then
@@ -831,7 +857,12 @@ Tabs.Sell:AddDropdown("MerchantSelector", {
     Default = 1,
 })
 
-
+Tabs.Sell:AddDropdown("SellMoveMethod", {
+    Title = "Metode Pergerakan Jual",
+    Values = {"Instant (TP)", "Tween", "Walk"},
+    Multi = false,
+    Default = 1,
+})
 Tabs.Sell:AddDropdown("AutoSellMode", {
     Title = "Auto Sell Mode",
     Values = {"Full Inventory", "Target Inventory"},
