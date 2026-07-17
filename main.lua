@@ -469,22 +469,14 @@ local function tweenFlybySell(merchantModel, merchantPos, originalPos)
         end)
     end
 
-    local function singleTrip(startPos, endPos, isReturning)
+    local function singleTrip(startPos, endPos)
         local distance = (startPos - endPos).Magnitude
         local duration = math.max(1.0, distance / speed)
         local startTime = tick()
-        
         local arrived = false
-        local bounceOccurred = false
-        local wasInZone = false
         
         local conn
         conn = RunService.Heartbeat:Connect(function()
-            if bounceOccurred then
-                conn:Disconnect()
-                return
-            end
-            
             local elapsed = tick() - startTime
             local alpha = math.clamp(elapsed / duration, 0, 1)
             root.AssemblyLinearVelocity = Vector3.zero 
@@ -493,17 +485,8 @@ local function tweenFlybySell(merchantModel, merchantPos, originalPos)
             root.CFrame = CFrame.new(currentPos)
             
             local distToMerchant = (currentPos - merchantPos).Magnitude
-            local inZone = distToMerchant <= 49.9
-            
-            if inZone then
-                wasInZone = true
+            if distToMerchant <= 49.9 then
                 fireSell()
-            elseif isReturning and wasInZone and not inZone then
-                local itemsCount = getInventoryStats()
-                if itemsCount > 0 then
-                    bounceOccurred = true
-                    conn:Disconnect()
-                end
             end
             
             if alpha >= 1 then 
@@ -512,21 +495,11 @@ local function tweenFlybySell(merchantModel, merchantPos, originalPos)
             end
         end)
         
-        while not arrived and not bounceOccurred do task.wait(0.03) end
-        return bounceOccurred
+        while not arrived do task.wait(0.03) end
     end
     
-    singleTrip(root.Position, safePos, false)
-    
-    local isSold = false
-    while not isSold do
-        local bounce = singleTrip(root.Position, originalPos.Position, true)
-        if bounce then
-            singleTrip(root.Position, safePos, false)
-        else
-            isSold = true
-        end
-    end
+    singleTrip(root.Position, safePos)
+    singleTrip(root.Position, originalPos.Position)
     
     for part, state in pairs(originalCollisions) do
         if part and part.Parent then part.CanCollide = true end
