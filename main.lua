@@ -453,25 +453,29 @@ local function instantSellAll()
             return
         end
         
-        local safePos
-        if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
-            safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
-        else
-            safePos = merchantPos + Vector3.new(3, 1, 0)
-        end
+        local needToMove = merchantDist > 45
         
-        local moveMethod = Options.SellMoveMethod and Options.SellMoveMethod.Value or "Instant (TP)"
-        if moveMethod == "Instant (TP)" then
-            root.CFrame = CFrame.new(safePos)
-            task.wait(0.1)
-        elseif moveMethod == "Tween" then
-            dynamicLerpTo(CFrame.new(safePos), 35, true)
-        else
-            walkTo(safePos)
+        if needToMove then
+            local safePos
+            if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
+                safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
+            else
+                safePos = merchantPos + Vector3.new(3, 1, 0)
+            end
+            
+            local moveMethod = Options.SellMoveMethod and Options.SellMoveMethod.Value or "Instant (TP)"
+            if moveMethod == "Instant (TP)" then
+                root.CFrame = CFrame.new(safePos)
+                task.wait(0.1)
+            elseif moveMethod == "Tween" then
+                dynamicLerpTo(CFrame.new(safePos), 35, true)
+            else
+                walkTo(safePos)
+            end
+            
+            root.Anchored = true
+            task.wait(0.5)
         end
-        
-        root.Anchored = true
-        task.wait(0.5)
         
         pcall(function()
             local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
@@ -484,20 +488,22 @@ local function instantSellAll()
         
         task.wait(1.5)
         
-        if moveMethod == "Instant (TP)" then
-            root.Anchored = false
-            root.CFrame = originalCFrame
-            task.wait(0.1)
-            root.Anchored = true
-            root.AssemblyLinearVelocity = Vector3.zero
-            task.wait(0.1)
-            root.Anchored = false
-        elseif moveMethod == "Tween" then
-            root.Anchored = false
-            dynamicLerpTo(originalCFrame, 35, false)
-        else
-            root.Anchored = false
-            walkTo(originalCFrame.Position)
+        if needToMove then
+            if moveMethod == "Instant (TP)" then
+                root.Anchored = false
+                root.CFrame = originalCFrame
+                task.wait(0.1)
+                root.Anchored = true
+                root.AssemblyLinearVelocity = Vector3.zero
+                task.wait(0.1)
+                root.Anchored = false
+            elseif moveMethod == "Tween" then
+                root.Anchored = false
+                dynamicLerpTo(originalCFrame, 35, false)
+            else
+                root.Anchored = false
+                walkTo(originalCFrame.Position)
+            end
         end
         
         -- Discord Webhook
