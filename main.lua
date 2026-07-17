@@ -1,8 +1,6 @@
 -- ==============================================================================
--- PROSPECTING! ULTIMATE AUTO FARM (V28)
--- Merged by Antigravity
--- Features: Fast Mode (DOIT), Anti-Cheat Bypass (V26), Auto-Sell (Lerp/Walk), 
--- Server Hop, Remote Shop, Auto-Favourite, Webhook, Anti-AFK
+-- PROSPECTING! Midas Touch (By Weka)
+-- Features: Auto Farm, Movement, Auto Sell, Auto Favourite, Teleport, Server hop, Shop, Settings
 -- ==============================================================================
 
 if not game:IsLoaded() then
@@ -122,8 +120,8 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Library:CreateWindow({
-    Title = "Prospecting! Ultimate V28",
-    SubTitle = "by DOIT & Antigravity",
+    Title = "Prospecting! Midas Touch",
+    SubTitle = "Ultimate V29",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -437,7 +435,7 @@ end
 local lastSellAttempt = 0
 local function instantSellAll()
     if State.isSelling then return end
-    if tick() - lastSellAttempt < 6 then return end 
+    if tick() - lastSellAttempt < 2 then return end 
     State.isSelling = true
     lastSellAttempt = tick()
     
@@ -453,70 +451,43 @@ local function instantSellAll()
             Library:Notify({ Title = "Sell Error", Content = "Merchant tidak ditemukan!", Duration = 4 })
             return
         end
-        if merchantDist > 3500 then
-            Library:Notify({ Title = "Sell Error", Content = "Merchant terlalu jauh!", Duration = 4 })
-            return
-        end
         
-        local safePos
-        if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
-            safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
-        else
-            safePos = merchantPos + Vector3.new(3, 1, 0)
-        end
-        
-        -- Movement Choice (Walk vs Lerp)
-        local moveMethod = Options.SellMoveMethod and Options.SellMoveMethod.Value or "Teleport (Lerp)"
-        if moveMethod == "Teleport (Lerp)" then
-            dynamicLerpTo(CFrame.new(safePos))
-        else
-            walkTo(safePos)
-        end
-        
+        -- INSTANT TELEPORT
+        root.CFrame = CFrame.new(merchantPos + Vector3.new(3, 1, 0))
+        task.wait(0.1)
         root.Anchored = true
-        task.wait(0.5)
+        task.wait(0.1)
         
-        pcall(function()
-            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-            if remotes and remotes:FindFirstChild("Shop") and remotes.Shop:FindFirstChild("SellAll") then
-                local sellAll = remotes.Shop.SellAll
-                if sellAll:IsA("RemoteFunction") then sellAll:InvokeServer()
-                elseif sellAll:IsA("RemoteEvent") then sellAll:FireServer() end
-            end
-        end)
-        
-        task.wait(1.5)
-        
-        root.Anchored = false
-        task.wait(0.2) 
-        
-        -- Return to original position
-        if moveMethod == "Teleport (Lerp)" then
-            dynamicLerpTo(originalCFrame)
-            root.Anchored = true
-            root.AssemblyLinearVelocity = Vector3.zero
-            task.wait(0.25)
-            root.Anchored = false
-        else
-            walkTo(originalCFrame.Position)
+        -- INSTANT SELL REMOTE
+        local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
+        local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
+        if sellRemote then
+            if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
+            elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
         end
         
-        -- Send Webhook if enabled and full
+        task.wait(0.3)
+        
+        -- INSTANT RETURN
+        root.Anchored = false
+        root.CFrame = originalCFrame
+        task.wait(0.1)
+        root.Anchored = true
+        root.AssemblyLinearVelocity = Vector3.zero
+        task.wait(0.1)
+        root.Anchored = false
+        
+        -- Discord Webhook
         if LogItems and WebhookLink ~= "" then
             pcall(function()
-                local data = {
-                    content = "Inventory was full so we sold it",
-                    username = "Prospecting Webhook"
-                }
-                local response = request({
+                request({
                     Url = WebhookLink,
                     Method = "POST",
                     Headers = {["Content-Type"] = "application/json"},
-                    Body = HttpService:JSONEncode(data)
+                    Body = HttpService:JSONEncode({content = "Successfully auto-sold inventory to merchant.", username = "Midas Touch Webhook"})
                 })
             end)
         end
-
     end)
     
     State.isSelling = false
@@ -526,45 +497,19 @@ end
 -- ==========================================
 -- 6. AUTO FAVOURITE LOGIC (V27 FIXED)
 -- ==========================================
-local function updateItemsFromStorage()
-    table.clear(Itemnameandrarity)
-    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-    if not remotes then return end
-    
-    local storageF = remotes:FindFirstChild("Storage")
-    if storageF and storageF:FindFirstChild("StorageRequest") then
-        local remote = storageF.StorageRequest
-        local success, inventoryData = pcall(function()
-            return remote:IsA("RemoteFunction") and remote:InvokeServer("GetInventory") or nil
-        end)
-        
-        if success and type(inventoryData) == "table" then
-            for _, item in ipairs(inventoryData) do
-                if type(item) == "table" then
-                    table.insert(Itemnameandrarity, {
-                        Rarity = item.Rarity or "Unknown",
-                        Name = item.Name or "Unknown",
-                        Weight = item.Weight or 0
-                    })
-                end
-            end
-        end
-    end
-end
-
-table.insert(Connections, RunService.Heartbeat:Connect(function()
-    if tick() % 10 < 0.1 then 
-        updateItemsFromStorage()
-    end
-end))
+local pendingLocks = {}
 
 local function scanAndLockBackpack()
     local pgui = LocalPlayer:FindFirstChild("PlayerGui")
     if not pgui then return end
-    local storageUI = pgui:FindFirstChild("StorageUI")
-    if not storageUI then return end
-    local scrollingFrame = storageUI:FindFirstChild("Storage", true)
-    if not scrollingFrame then return end
+    
+    local gridFrame = pgui:FindFirstChild("BackpackGui")
+        and pgui.BackpackGui:FindFirstChild("Backpack")
+        and pgui.BackpackGui.Backpack:FindFirstChild("Inventory")
+        and pgui.BackpackGui.Backpack.Inventory:FindFirstChild("ScrollingFrame")
+        and pgui.BackpackGui.Backpack.Inventory.ScrollingFrame:FindFirstChild("UIGridFrame")
+        
+    if not gridFrame then return end
 
     local rarityValues = { ["Legendary"] = 5, ["Epic"] = 4, ["Rare"] = 3, ["Uncommon"] = 2, ["Common"] = 1 }
     local selectedRarityStr = Options.RarityDropdown and Options.RarityDropdown.Value or "None"
@@ -572,62 +517,51 @@ local function scanAndLockBackpack()
     local minWeight = Options.WeightSlider and Options.WeightSlider.Value or 0
     local selectedNames = Options.LockItemName and Options.LockItemName.Value or {}
     
-    for _, item in ipairs(scrollingFrame:GetChildren()) do
-        if item:IsA("Frame") and not item:GetAttribute("Locked") and not pendingLocks[item] then
-            local itemNameLabel = item:FindFirstChild("ItemName", true)
-            local itemInfoLabel = item:FindFirstChild("ItemInfo", true)
-            
-            if itemNameLabel and itemInfoLabel then
-                local itemName = itemNameLabel.Text
-                local infoText = itemInfoLabel.Text
+    for _, item in ipairs(gridFrame:GetChildren()) do
+        if item:IsA("Frame") and not pendingLocks[item] then
+            -- Verify it's not locked via UI indicators
+            local isLocked = item:FindFirstChild("LockedIcon") or item:FindFirstChild("LockedStrokeFrame")
+            if not isLocked then
+                local itemNameLabel = item:FindFirstChild("ToolName")
+                local toolWeightLabel = item:FindFirstChild("ToolWeight")
                 
-                local actualWeight = tonumber(string.match(infoText, "([%d%.]+)%s*lbs")) or 0
-                local actualRarityStr = string.match(infoText, "Rarity:%s*(%w+)") or "Common"
-                local actualRarityWeight = rarityValues[actualRarityStr] or 0
-                
-                local shouldLock = false
-                
-                if minWeight > 0 and actualWeight >= minWeight then shouldLock = true end
-                if selectedRarityWeight > 0 and actualRarityWeight >= selectedRarityWeight then shouldLock = true end
-                for selectedName, isSelected in pairs(selectedNames) do
-                    if isSelected and string.lower(itemName):match(string.lower(selectedName)) then
-                        shouldLock = true
-                        break
-                    end
-                end
-                
-                if shouldLock then
-                    pendingLocks[item] = tick()
+                if itemNameLabel and toolWeightLabel then
+                    local itemName = itemNameLabel.Text
+                    local weightText = toolWeightLabel.Text
+                    local actualWeight = tonumber(string.match(weightText, "([%d%.]+)")) or 0
                     
-                    pcall(function()
-                        local lockRemote = ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("Storage"):FindFirstChild("ItemAction")
-                        if lockRemote then
-                            if lockRemote:IsA("RemoteFunction") then
-                                lockRemote:InvokeServer("Lock", item.Name)
-                            else
-                                lockRemote:FireServer("Lock", item.Name)
-                            end
-                            
-                            if LogItems and WebhookLink ~= "" then
-                                local data = {
-                                    content = "Locked Item: " .. itemName .. " (" .. actualRarityStr .. ") - " .. tostring(actualWeight) .. " lbs",
-                                    username = "Prospecting Webhook"
-                                }
-                                request({
-                                    Url = WebhookLink,
-                                    Method = "POST",
-                                    Headers = {["Content-Type"] = "application/json"},
-                                    Body = HttpService:JSONEncode(data)
-                                })
-                            end
+                    local actualRarityStr = "Common"
+                    local newTooltip = item:FindFirstChild("NewTooltip")
+                    if newTooltip then
+                        local rarityLabel = newTooltip:FindFirstChild("Stats") and newTooltip.Stats:FindFirstChild("Rarity") and newTooltip.Stats.Rarity:FindFirstChild("RarityText")
+                        if rarityLabel then
+                            actualRarityStr = rarityLabel.Text
                         end
-                    end)
+                    end
+                    local actualRarityWeight = rarityValues[actualRarityStr] or 0
                     
-                    local conn
-                    conn = item:GetAttributeChangedSignal("Locked"):Connect(function()
-                        pendingLocks[item] = nil
-                        if conn then conn:Disconnect() end
-                    end)
+                    local shouldLock = false
+                    if minWeight > 0 and actualWeight >= minWeight then shouldLock = true end
+                    if selectedRarityWeight > 0 and actualRarityWeight >= selectedRarityWeight then shouldLock = true end
+                    for selectedName, isSelected in pairs(selectedNames) do
+                        if isSelected and string.lower(itemName):match(string.lower(selectedName)) then
+                            shouldLock = true
+                            break
+                        end
+                    end
+                    
+                    if shouldLock then
+                        pendingLocks[item] = tick()
+                        pcall(function()
+                            local lockRemote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Inventory") and ReplicatedStorage.Remotes.Inventory:FindFirstChild("ToggleLock")
+                            if lockRemote then
+                                if lockRemote:IsA("RemoteFunction") then lockRemote:InvokeServer(item.Name)
+                                elseif lockRemote:IsA("RemoteEvent") then lockRemote:FireServer(item.Name) end
+                            end
+                        end)
+                        -- Timeout to prevent deadlock
+                        task.delay(1, function() pendingLocks[item] = nil end)
+                    end
                 end
             end
         end
@@ -1243,7 +1177,7 @@ SaveManager:SetLibrary(Library)
 InterfaceManager:SetLibrary(Library)
 
 InterfaceManager:SetFolder("ProspectingUI")
-SaveManager:SetFolder("Prospecting/UltimateV28")
+SaveManager:SetFolder("Prospecting/MidasTouchV29")
 
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
@@ -1251,8 +1185,4 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 Window:SelectTab(1)
 SaveManager:LoadAutoloadConfig()
 
-Library:Notify({
-    Title = "Script Loaded!",
-    Content = "Ultimate V28 (Antigravity Merged)",
-    Duration = 5
-})
+Library:Notify({ Title = "Script Loaded!", Content = "Midas Touch (By Weka)", Duration = 5 })
