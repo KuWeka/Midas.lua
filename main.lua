@@ -433,6 +433,107 @@ local function shouldAutoSell()
     return false
 end
 
+local function tweenFlybySell(merchantModel, merchantPos, originalPos)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not root then return end
+    
+    if hum then hum.PlatformStand = true end
+    local originalCollisions = {}
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            originalCollisions[part] = part.CanCollide
+            part.CanCollide = false
+        end
+    end
+    
+    local speed = 35
+    local safePos
+    if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
+        safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
+    else
+        safePos = merchantPos + Vector3.new(3, 1, 0)
+    end
+    
+    local function fireSell()
+        pcall(function()
+            local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
+            local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
+            if sellRemote then
+                if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
+                elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
+            end
+        end)
+    end
+
+    local function singleTrip(startPos, endPos, isReturning)
+        local distance = (startPos - endPos).Magnitude
+        local duration = math.max(1.0, distance / speed)
+        local startTime = tick()
+        
+        local arrived = false
+        local bounceOccurred = false
+        local wasInZone = false
+        
+        local conn
+        conn = RunService.Heartbeat:Connect(function()
+            if bounceOccurred then
+                conn:Disconnect()
+                return
+            end
+            
+            local elapsed = tick() - startTime
+            local alpha = math.clamp(elapsed / duration, 0, 1)
+            root.AssemblyLinearVelocity = Vector3.zero 
+            
+            local currentPos = startPos:Lerp(endPos, alpha)
+            root.CFrame = CFrame.new(currentPos)
+            
+            local distToMerchant = (currentPos - merchantPos).Magnitude
+            local inZone = distToMerchant <= 49.9
+            
+            if inZone then
+                wasInZone = true
+                fireSell()
+            elseif isReturning and wasInZone and not inZone then
+                local itemsCount = getInventoryStats()
+                if itemsCount > 0 then
+                    bounceOccurred = true
+                    conn:Disconnect()
+                end
+            end
+            
+            if alpha >= 1 then 
+                arrived = true
+                conn:Disconnect() 
+            end
+        end)
+        
+        while not arrived and not bounceOccurred do task.wait(0.03) end
+        return bounceOccurred
+    end
+    
+    singleTrip(root.Position, safePos, false)
+    
+    local isSold = false
+    while not isSold do
+        local bounce = singleTrip(root.Position, originalPos.Position, true)
+        if bounce then
+            singleTrip(root.Position, safePos, false)
+        else
+            isSold = true
+        end
+    end
+    
+    for part, state in pairs(originalCollisions) do
+        if part and part.Parent then part.CanCollide = true end
+    end
+    root.AssemblyLinearVelocity = Vector3.zero
+    if hum then hum.PlatformStand = false end
+    task.wait(0.1)
+end
+
 local lastSellAttempt = 0
 local function instantSellAll()
     if State.isSelling then return end
@@ -454,55 +555,54 @@ local function instantSellAll()
         end
         
         local needToMove = merchantDist > 45
+        local moveMethod = Options.SellMoveMethod and Options.SellMoveMethod.Value or "Instant (TP)"
         
-        if needToMove then
-            local safePos
-            if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
-                safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
-            else
-                safePos = merchantPos + Vector3.new(3, 1, 0)
-            end
-            
-            local moveMethod = Options.SellMoveMethod and Options.SellMoveMethod.Value or "Instant (TP)"
-            if moveMethod == "Instant (TP)" then
-                root.CFrame = CFrame.new(safePos)
-                task.wait(0.1)
-            elseif moveMethod == "Tween" then
-                dynamicLerpTo(CFrame.new(safePos), 35, true)
-            else
-                walkTo(safePos)
-            end
-            
-            root.Anchored = true
-            task.wait(0.5)
-        end
-        
-        pcall(function()
-            local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
-            local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
-            if sellRemote then
-                if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
-                elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
-            end
-        end)
-        
-        task.wait(1.5)
-        
-        if needToMove then
-            if moveMethod == "Instant (TP)" then
-                root.Anchored = false
-                root.CFrame = originalCFrame
-                task.wait(0.1)
+        if needToMove and moveMethod == "Tween" then
+            tweenFlybySell(merchantModel, merchantPos, originalCFrame)
+        else
+            if needToMove then
+                local safePos
+                if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
+                    safePos = (merchantModel.HumanoidRootPart.CFrame * CFrame.new(3, 1, 0)).Position
+                else
+                    safePos = merchantPos + Vector3.new(3, 1, 0)
+                end
+                
+                if moveMethod == "Instant (TP)" then
+                    root.CFrame = CFrame.new(safePos)
+                    task.wait(0.1)
+                else
+                    walkTo(safePos)
+                end
+                
                 root.Anchored = true
-                root.AssemblyLinearVelocity = Vector3.zero
-                task.wait(0.1)
-                root.Anchored = false
-            elseif moveMethod == "Tween" then
-                root.Anchored = false
-                dynamicLerpTo(originalCFrame, 35, false)
-            else
-                root.Anchored = false
-                walkTo(originalCFrame.Position)
+                task.wait(0.5)
+            end
+            
+            pcall(function()
+                local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
+                local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
+                if sellRemote then
+                    if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
+                    elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
+                end
+            end)
+            
+            task.wait(1.5)
+            
+            if needToMove then
+                if moveMethod == "Instant (TP)" then
+                    root.Anchored = false
+                    root.CFrame = originalCFrame
+                    task.wait(0.1)
+                    root.Anchored = true
+                    root.AssemblyLinearVelocity = Vector3.zero
+                    task.wait(0.1)
+                    root.Anchored = false
+                else
+                    root.Anchored = false
+                    walkTo(originalCFrame.Position)
+                end
             end
         end
         
