@@ -201,24 +201,45 @@ local function findPan()
 end
 
 local function getInventoryStats()
+    local pgui = LocalPlayer:FindFirstChild("PlayerGui")
+    if pgui then
+        for _, desc in ipairs(pgui:GetDescendants()) do
+            if desc:IsA("TextLabel") and desc.Visible then
+                local text = desc.Text:gsub("<[^>]->", ""):gsub(",", "")
+                local curStr, maxStr = string.match(text, "^%s*(%d+)%s*/%s*(%d+)%s*$")
+                if curStr and maxStr then
+                    local cur, max = tonumber(curStr), tonumber(maxStr)
+                    local isPan = false
+                    local p = desc.Parent
+                    while p and p ~= pgui do
+                        if p.Name == "FillingPan" or p.Name == "DigBar" or p.Name == "ToolUI" then
+                            isPan = true
+                            break
+                        end
+                        p = p.Parent
+                    end
+                    if not isPan and max > 10 then 
+                        return cur, max
+                    end
+                end
+            end
+        end
+    end
+
     local maxCapacity = LocalPlayer:GetAttribute("InventorySize") or 500
     local backpackTwo = LocalPlayer:FindFirstChild("BackpackTwo")
-    
-    if not backpackTwo then 
-        return 0, maxCapacity 
-    end
-
-    local items = backpackTwo:GetChildren()
-    local charTool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-    if charTool then
-        table.insert(items, charTool)
-    end
-
     local count = 0
-    for _, item in ipairs(items) do
-        local itemType = item:GetAttribute("ItemType")
-        if itemType == "Equipment" or itemType == "Valuable" then
-            count = count + 1
+    
+    if backpackTwo then
+        local items = backpackTwo:GetChildren()
+        local charTool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if charTool then
+            table.insert(items, charTool)
+        end
+        for _, item in ipairs(items) do
+            if item:IsA("Tool") or item:IsA("Model") or item:GetAttribute("ItemType") then
+                count = count + 1
+            end
         end
     end
 
@@ -422,6 +443,18 @@ end
 -- ==========================================
 local function shouldAutoSell()
     if not Options.AutoSellToggle or not Options.AutoSellToggle.Value then return false end
+    
+    local pgui = LocalPlayer:FindFirstChild("PlayerGui")
+    if pgui then
+        for _, desc in ipairs(pgui:GetDescendants()) do
+            if desc:IsA("TextLabel") and desc.Visible then
+                local text = desc.Text:gsub("<[^>]->", "")
+                if string.find(string.lower(text), "backpack is full") then
+                    return true
+                end
+            end
+        end
+    end
     
     local mode = Options.AutoSellMode and Options.AutoSellMode.Value or "Full Inventory"
     local cur, max = getInventoryStats()
@@ -1032,8 +1065,8 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
-    Title = "Update Terbaru (18 Juli 2026, 00:27)",
-    Content = "1. Memperbaiki Syntax Error (Compiler Bug) yang menyebabkan script gagal diexecute pada executor tertentu akibat single-line block.\n2. Logika Spam SellAll kini berfungsi normal di semua metode pergerakan (PathFind, Walk, Tween, Instant TP)."
+    Title = "Update Terbaru (18 Juli 2026, 00:50)",
+    Content = "1. Memperbaiki logika pembacaan Inventory (Bug Auto Sell tidak ter-trigger) dengan membaca UI text secara langsung.\n2. Auto Sell kini akan instan aktif apabila muncul peringatan 'Your backpack is full!'"
 })
 
 Tabs.Settings:AddButton({
