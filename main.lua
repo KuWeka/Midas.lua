@@ -903,12 +903,6 @@ Tabs.Sell:AddDropdown("MerchantSelector", {
     Default = 1,
 })
 
-Tabs.Sell:AddDropdown("SellMoveMethod", {
-    Title = "Metode Pergerakan Jual",
-    Values = {"Teleport (Lerp)", "Walk (Lurus)"},
-    Multi = false,
-    Default = 1,
-})
 
 Tabs.Sell:AddDropdown("AutoSellMode", {
     Title = "Auto Sell Mode",
