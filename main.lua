@@ -271,7 +271,7 @@ local function walkTo(targetPosition)
     end
 end
 
-local function dynamicLerpTo(targetCFrame, customSpeed)
+local function dynamicLerpTo(targetCFrame, customSpeed, keepFloating)
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -304,13 +304,14 @@ local function dynamicLerpTo(targetCFrame, customSpeed)
     
     while connection.Connected do task.wait(0.03) end
     
-    for part, state in pairs(originalCollisions) do
-        if part and part.Parent then part.CanCollide = state end
+    if not keepFloating then
+        for part, state in pairs(originalCollisions) do
+            if part and part.Parent then part.CanCollide = true end -- Force true to prevent sticking
+        end
+        root.AssemblyLinearVelocity = Vector3.zero
+        if hum then hum.PlatformStand = false end
+        task.wait(0.5)
     end
-    
-    root.AssemblyLinearVelocity = Vector3.zero
-    if hum then hum.PlatformStand = false end
-    task.wait(0.5) 
 end
 
 local merchantData = {
@@ -464,7 +465,7 @@ local function instantSellAll()
             root.CFrame = CFrame.new(safePos)
             task.wait(0.1)
         elseif moveMethod == "Tween" then
-            dynamicLerpTo(CFrame.new(safePos))
+            dynamicLerpTo(CFrame.new(safePos), 35, true)
         else
             walkTo(safePos)
         end
@@ -483,10 +484,8 @@ local function instantSellAll()
         
         task.wait(1.5)
         
-        root.Anchored = false
-        task.wait(0.2)
-        
         if moveMethod == "Instant (TP)" then
+            root.Anchored = false
             root.CFrame = originalCFrame
             task.wait(0.1)
             root.Anchored = true
@@ -494,12 +493,10 @@ local function instantSellAll()
             task.wait(0.1)
             root.Anchored = false
         elseif moveMethod == "Tween" then
-            dynamicLerpTo(originalCFrame)
-            root.Anchored = true
-            root.AssemblyLinearVelocity = Vector3.zero
-            task.wait(0.25)
             root.Anchored = false
+            dynamicLerpTo(originalCFrame, 35, false)
         else
+            root.Anchored = false
             walkTo(originalCFrame.Position)
         end
         
