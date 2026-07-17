@@ -438,6 +438,77 @@ end
 -- ==========================================
 -- 5. AUTO SELL & WEBHOOK LOGIC
 -- ==========================================
+local function tweenTo(targetPos)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local startPos = root.Position
+    local speed = 35
+    local distance = (startPos - targetPos).Magnitude
+    local duration = math.max(1.0, distance / speed)
+    local startTime = tick()
+    local arrived = false
+    
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        local elapsed = tick() - startTime
+        local alpha = math.clamp(elapsed / duration, 0, 1)
+        root.AssemblyLinearVelocity = Vector3.zero 
+        
+        local currentPos = startPos:Lerp(targetPos, alpha)
+        root.CFrame = CFrame.new(currentPos)
+        
+        if alpha >= 1 then 
+            arrived = true
+            conn:Disconnect() 
+        end
+    end)
+    
+    while not arrived do task.wait(0.03) end
+end
+
+local function pathfindTo(targetPos)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char:FindFirstChild("Humanoid")
+    if not root or not humanoid then return end
+
+    local PathfindingService = game:GetService("PathfindingService")
+    local path = PathfindingService:CreatePath({
+        AgentRadius = 2,
+        AgentHeight = 4,
+        AgentCanJump = true,
+        AgentJumpHeight = 10,
+        AgentMaxSlope = 45,
+        WaypointSpacing = 3
+    })
+    
+    local success, _ = pcall(function()
+        path:ComputeAsync(root.Position, targetPos)
+    end)
+    
+    if success and path.Status == Enum.PathStatus.Success then
+        local waypoints = path:GetWaypoints()
+        for i, waypoint in ipairs(waypoints) do
+            if waypoint.Action == Enum.PathWaypointAction.Jump then
+                humanoid.Jump = true
+            end
+            humanoid:MoveTo(waypoint.Position)
+            
+            local timeout = tick() + 2
+            while tick() < timeout do
+                local dist = (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(waypoint.Position.X, 0, waypoint.Position.Z)).Magnitude
+                if dist < 2 then break end
+                task.wait(0.05)
+            end
+        end
+    else
+        tweenTo(targetPos)
+    end
+end
+
 local function shouldAutoSell()
     if not Options.AutoSellToggle or not Options.AutoSellToggle.Value then return false end
     
