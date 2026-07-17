@@ -472,11 +472,21 @@ end)
 local function doDig()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum then return end
     
-    if (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(State.digLocation.X, 0, State.digLocation.Z)).Magnitude > 3 then
-        root.CFrame = CFrame.new(State.digLocation)
-        task.wait(0.2)
+    local method = Options.AutoFarmMethod and Options.AutoFarmMethod.Value or "Fast (Teleport)"
+    if method == "Legit (Walk)" then
+        if (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(State.digLocation.X, 0, State.digLocation.Z)).Magnitude > 3 then
+            hum:MoveTo(State.digLocation)
+            task.wait(0.2)
+            return
+        end
+    else
+        if (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(State.digLocation.X, 0, State.digLocation.Z)).Magnitude > 3 then
+            root.CFrame = CFrame.new(State.digLocation)
+            task.wait(0.2)
+        end
     end
     
     local tool = equipTool()
@@ -497,11 +507,21 @@ end
 local function doPan()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum then return end
     
-    if (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(State.panLocation.X, 0, State.panLocation.Z)).Magnitude > 3 then
-        root.CFrame = CFrame.new(State.panLocation)
-        task.wait(0.2)
+    local method = Options.AutoFarmMethod and Options.AutoFarmMethod.Value or "Fast (Teleport)"
+    if method == "Legit (Walk)" then
+        if (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(State.panLocation.X, 0, State.panLocation.Z)).Magnitude > 3 then
+            hum:MoveTo(State.panLocation)
+            task.wait(0.2)
+            return
+        end
+    else
+        if (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(State.panLocation.X, 0, State.panLocation.Z)).Magnitude > 3 then
+            root.CFrame = CFrame.new(State.panLocation)
+            task.wait(0.2)
+        end
     end
     
     local tool = equipTool()
@@ -574,6 +594,7 @@ end
 -- 8. TAB 1: MAIN
 -- ==========================================
 Tabs.Main:AddToggle("AutoFarmToggle", { Title = "Auto Farm", Description = "Auto Farm All (Instant)", Default = false, Callback = toggleAutoFarm })
+Tabs.Main:AddDropdown("AutoFarmMethod", { Title = "Auto Farm Method", Values = {"Legit (Walk)", "Fast (Teleport)"}, Default = "Fast (Teleport)", Multi = false })
 
 local waterStr = "Not set"
 local sandStr = "Not set"
