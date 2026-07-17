@@ -467,6 +467,8 @@ local function tweenFlybySell(merchantModel, merchantPos, originalPos)
         safePos = merchantPos + Vector3.new(3, 1, 0)
     end
     
+    root.Anchored = true
+    
     local function fireSell()
         pcall(function()
             local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
@@ -518,6 +520,7 @@ local function tweenFlybySell(merchantModel, merchantPos, originalPos)
     for part, state in pairs(originalCollisions) do
         if part and part.Parent then part.CanCollide = state end
     end
+    root.Anchored = false
     root.AssemblyLinearVelocity = Vector3.zero
     if hum then hum.PlatformStand = false end
     task.wait(0.1)
@@ -1083,8 +1086,8 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
-    Title = "Update Terbaru (17 Juli 2026, 23:08)",
-    Content = "1. Peningkatan anti-rollback (Stepped Noclip) pada pergerakan Tween Flyby.\n2. Pengecualian Traveling Merchant & Shard Merchant dari sistem Auto Sell.\n3. Penambahan tombol Refresh Nearest Merchant."
+    Title = "Update Terbaru (17 Juli 2026, 23:13)",
+    Content = "1. Penambahan metode 'Anchored = true' pada Tween Flyby untuk memblokir intervensi Anti-Cheat Server (Fix Rubber-banding mutlak).\n2. Peningkatan anti-rollback (Stepped Noclip) pada pergerakan Tween Flyby.\n3. Pengecualian Traveling Merchant & Shard Merchant dari sistem Auto Sell.\n4. Penambahan tombol Refresh Nearest Merchant."
 })
 
 Tabs.Settings:AddButton({
