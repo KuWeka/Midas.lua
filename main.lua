@@ -450,6 +450,14 @@ local function tweenFlybySell(merchantModel, merchantPos, originalPos)
         end
     end
     
+    local noclipConn = RunService.Stepped:Connect(function()
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
+    
     local speed = 35
     local safePos
     if merchantModel and merchantModel:FindFirstChild("HumanoidRootPart") then
@@ -501,8 +509,13 @@ local function tweenFlybySell(merchantModel, merchantPos, originalPos)
     singleTrip(root.Position, safePos)
     singleTrip(root.Position, originalPos.Position)
     
+    if noclipConn then noclipConn:Disconnect() end
+    
+    root.CFrame = originalPos
+    task.wait(0.1)
+    
     for part, state in pairs(originalCollisions) do
-        if part and part.Parent then part.CanCollide = true end
+        if part and part.Parent then part.CanCollide = state end
     end
     root.AssemblyLinearVelocity = Vector3.zero
     if hum then hum.PlatformStand = false end
