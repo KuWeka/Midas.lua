@@ -563,6 +563,8 @@ local function instantSellAll()
                 if moveMethod == "Instant (TP)" then
                     root.CFrame = CFrame.new(safePos)
                     task.wait(0.1)
+                elseif moveMethod == "PathFind" then
+                    pathfindTo(safePos)
                 else
                     walkTo(safePos)
                 end
@@ -602,6 +604,9 @@ local function instantSellAll()
                     root.AssemblyLinearVelocity = Vector3.zero
                     task.wait(0.1)
                     root.Anchored = false
+                elseif moveMethod == "PathFind" then
+                    root.Anchored = false
+                    pathfindTo(originalCFrame.Position)
                 else
                     root.Anchored = false
                     walkTo(originalCFrame.Position)
@@ -981,7 +986,7 @@ Tabs.Sell:AddButton({
 
 Tabs.Sell:AddDropdown("SellMoveMethod", {
     Title = "Metode Pergerakan Jual",
-    Values = {"Instant (TP)", "Tween", "Walk"},
+    Values = {"Instant (TP)", "Tween", "Walk", "PathFind"},
     Multi = false,
     Default = 1,
 })
@@ -1097,8 +1102,8 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
-    Title = "Update Terbaru (17 Juli 2026, 23:44)",
-    Content = "1. Revert metode 'Tween' kembali ke versi awal (garis lurus dengan Stepped Noclip, tanpa Anchored dan tanpa Sky Tween)."
+    Title = "Update Terbaru (18 Juli 2026, 00:03)",
+    Content = "1. Penambahan fitur AI PathfindingService untuk pergerakan Auto Sell secara cerdas.\n2. Revert metode 'Tween' kembali ke versi awal (garis lurus dengan Stepped Noclip, tanpa Anchored dan tanpa Sky Tween)."
 })
 
 Tabs.Settings:AddButton({
