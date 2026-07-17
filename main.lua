@@ -492,13 +492,27 @@ local function doDig()
     local tool = equipTool()
     if not tool then task.wait(0.5); return end
     
+    -- Paksa aktifkan tool layaknya klik kiri
+    tool:Activate()
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:Button1Down(Vector2.new(0,0), Camera.CFrame)
+        task.wait(0.05)
+        VirtualUser:Button1Up(Vector2.new(0,0), Camera.CFrame)
+    end)
+    
     local scriptsFolder = tool:FindFirstChild("Scripts")
     local digRemote = scriptsFolder and (scriptsFolder:FindFirstChild("ToggleShovelActive") or scriptsFolder:FindFirstChild("Dig"))
     
     if digRemote then
         pcall(function()
-            if digRemote:IsA("RemoteEvent") then digRemote:FireServer()
-            elseif digRemote:IsA("RemoteFunction") then digRemote:InvokeServer() end
+            if digRemote:IsA("RemoteEvent") then 
+                digRemote:FireServer(true)
+                digRemote:FireServer()
+            elseif digRemote:IsA("RemoteFunction") then 
+                digRemote:InvokeServer(true)
+                digRemote:InvokeServer()
+            end
         end)
     end
     task.wait(0.1)
@@ -526,6 +540,15 @@ local function doPan()
     
     local tool = equipTool()
     if not tool then task.wait(0.5); return end
+    
+    -- Paksa aktifkan tool layaknya klik kiri
+    tool:Activate()
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:Button1Down(Vector2.new(0,0), Camera.CFrame)
+        task.wait(0.05)
+        VirtualUser:Button1Up(Vector2.new(0,0), Camera.CFrame)
+    end)
     
     local scriptsFolder = tool:FindFirstChild("Scripts")
     local panRemote = scriptsFolder and scriptsFolder:FindFirstChild("Pan")
