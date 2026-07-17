@@ -508,9 +508,18 @@ local function tweenFlybySell(merchantModel, merchantPos, originalPos)
         
         while not arrived do task.wait(0.03) end
     end
+    local function skyTrip(startPos, endPos)
+        local skyAltitude = math.max(startPos.Y, endPos.Y) + 150
+        local skyStart = Vector3.new(startPos.X, skyAltitude, startPos.Z)
+        local skyEnd = Vector3.new(endPos.X, skyAltitude, endPos.Z)
+        
+        singleTrip(startPos, skyStart)
+        singleTrip(skyStart, skyEnd)
+        singleTrip(skyEnd, endPos)
+    end
     
-    singleTrip(root.Position, safePos)
-    singleTrip(root.Position, originalPos.Position)
+    skyTrip(root.Position, safePos)
+    skyTrip(root.Position, originalPos.Position)
     
     if noclipConn then noclipConn:Disconnect() end
     
@@ -1086,8 +1095,8 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
-    Title = "Update Terbaru (17 Juli 2026, 23:13)",
-    Content = "1. Penambahan metode 'Anchored = true' pada Tween Flyby untuk memblokir intervensi Anti-Cheat Server (Fix Rubber-banding mutlak).\n2. Peningkatan anti-rollback (Stepped Noclip) pada pergerakan Tween Flyby.\n3. Pengecualian Traveling Merchant & Shard Merchant dari sistem Auto Sell.\n4. Penambahan tombol Refresh Nearest Merchant."
+    Title = "Update Terbaru (17 Juli 2026, 23:17)",
+    Content = "1. Penambahan metode 'Sky Tween' (Elevasi 150+): Karakter kini akan selalu terbang melambung ke langit terlebih dahulu sebelum melesat ke tujuan untuk menghindari semua halangan/tembok fisik secara total agar tidak tertangkap sensor rollback Anti-Cheat Roblox.\n2. Penambahan metode 'Anchored = true' pada Tween Flyby.\n3. Pengecualian Traveling Merchant & Shard Merchant dari sistem Auto Sell.\n4. Penambahan tombol Refresh Nearest Merchant."
 })
 
 Tabs.Settings:AddButton({
