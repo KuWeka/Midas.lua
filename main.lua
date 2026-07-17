@@ -136,6 +136,7 @@ local Tabs = {
     Favourite = Window:AddTab({ Title = "Auto Lock 🔒", Icon = "heart" }),
     Shop = Window:AddTab({ Title = "Shop 🏪", Icon = "shopping-cart" }),
     Teleport = Window:AddTab({ Title = "Teleport 🗺️", Icon = "map" }),
+    Changelog = Window:AddTab({ Title = "Changelog 📝", Icon = "scroll" }),
     Settings = Window:AddTab({ Title = "Settings ⚙️", Icon = "settings" })
 }
 
@@ -1079,8 +1080,13 @@ table.insert(Connections, UserInputService.JumpRequest:Connect(function()
 end))
 
 -- ==========================================
--- 14. TAB 7: SETTINGS
+-- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
+Tabs.Changelog:AddParagraph({
+    Title = "Update Terbaru (17 Juli 2026, 23:08)",
+    Content = "1. Peningkatan anti-rollback (Stepped Noclip) pada pergerakan Tween Flyby.\n2. Pengecualian Traveling Merchant & Shard Merchant dari sistem Auto Sell.\n3. Penambahan tombol Refresh Nearest Merchant."
+})
+
 Tabs.Settings:AddButton({
     Title = "Unload Script",
     Callback = function()
