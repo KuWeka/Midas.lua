@@ -161,9 +161,9 @@ local function getEquippedTool()
 end
 
 local function getBackpackTool()
-    local backpackTwo = LocalPlayer:FindFirstChild("BackpackTwo") or LocalPlayer:FindFirstChild("Backpack")
-    if backpackTwo then
-        for _, item in ipairs(backpackTwo:GetChildren()) do
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, item in ipairs(backpack:GetChildren()) do
             if item:IsA("Tool") and (item.Name:match("Pan") or item.Name:match("Shovel") or item.Name:match("Worldshaker") or item.Name:match("Earthbreaker")) then
                 return item
             end
@@ -182,8 +182,13 @@ local function equipTool()
     
     if tool and hum then
         hum:EquipTool(tool)
-        task.wait(0.1)
-        return getEquippedTool()
+        task.wait(0.2)
+        -- Jika EquipTool gagal, paksa pindahkan ke tangan karakter
+        if not char:FindFirstChild(tool.Name) then
+            tool.Parent = char
+            task.wait(0.1)
+        end
+        return tool
     end
     return nil
 end
