@@ -474,8 +474,11 @@ local function instantSellAll()
                     local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
                     local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
                     if sellRemote then
-                        if sellRemote:IsA("RemoteFunction") then sellRemote:InvokeServer()
-                        elseif sellRemote:IsA("RemoteEvent") then sellRemote:FireServer() end
+                        if sellRemote:IsA("RemoteFunction") then 
+                            sellRemote:InvokeServer()
+                        elseif sellRemote:IsA("RemoteEvent") then 
+                            sellRemote:FireServer() 
+                        end
                     end
                 end)
             end
@@ -1029,8 +1032,8 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
-    Title = "Update Terbaru (18 Juli 2026, 00:15)",
-    Content = "1. Merombak total logika Spam SellAll: Semua metode pergerakan (PathFind, Walk, Tween, Instant TP) kini otomatis memiliki sistem 'Spam Sell saat memasuki area 49.9 studs' seperti pada blueprint gambar.\n2. Memperbaiki bug PathFind & Walk yang sering gagal berjalan karena karakter terkunci (Anchored) oleh sistem farming sebelumnya.\n3. Fitur 'Sell All Now' kini juga dijamin 100% menggunakan metode pergerakan pilihan di dropdown."
+    Title = "Update Terbaru (18 Juli 2026, 00:27)",
+    Content = "1. Memperbaiki Syntax Error (Compiler Bug) yang menyebabkan script gagal diexecute pada executor tertentu akibat single-line block.\n2. Logika Spam SellAll kini berfungsi normal di semua metode pergerakan (PathFind, Walk, Tween, Instant TP)."
 })
 
 Tabs.Settings:AddButton({
