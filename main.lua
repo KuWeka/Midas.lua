@@ -1114,6 +1114,27 @@ Tabs.Sell:AddInput("TargetInventoryValue", {
     Finished = false,
 })
 
+Tabs.Sell:AddButton({
+    Title = "🔧 DEBUG: Test Check Bag",
+    Description = "Klik ini saat tas hampir penuh untuk mengecek apakah script berhasil membacanya.",
+    Callback = function()
+        local pgui = LocalPlayer:FindFirstChild("PlayerGui")
+        local rawText = "UI Tidak Ditemukan"
+        if pgui then
+            local invSpace = pgui:FindFirstChild("ToolUI") and pgui.ToolUI:FindFirstChild("FillingPan") and pgui.ToolUI.FillingPan:FindFirstChild("InventorySpace")
+            if invSpace and invSpace:IsA("TextLabel") then
+                rawText = invSpace.Text
+            end
+        end
+        local cur, max = getInventoryStats()
+        Library:Notify({
+            Title = "Debug Info",
+            Content = string.format("Raw Text: %s\nTerbaca: %d / %d", rawText, cur, max),
+            Duration = 10
+        })
+    end
+})
+
 Tabs.Sell:AddButton({ 
     Title = "Sell All Now (Instan)", 
     Callback = function()
