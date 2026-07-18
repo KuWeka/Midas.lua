@@ -1251,7 +1251,8 @@ Tabs.Teleport:AddButton({
                 end
                 
                 if pos then
-                    doTeleport(pos + Vector3.new(0, 3, 0))
+                    -- Menambahkan offset tinggi (+6) dan geser ke depan/samping (+5) agar tidak nyangkut di dalam prop
+                    doTeleport(pos + Vector3.new(0, 6, 5))
                 else
                     Library:Notify({ Title = "Error", Content = "Waypoint tidak memiliki posisi (bukan 3D object)!", Duration = 3 })
                 end
