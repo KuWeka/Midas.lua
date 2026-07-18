@@ -1201,7 +1201,35 @@ task.spawn(function()
                     for _, geodeModel in ipairs(geodeFolder:GetChildren()) do
                         local part = geodeModel:IsA("BasePart") and geodeModel or geodeModel:FindFirstChildWhichIsA("BasePart")
                         if part then
-                            table.insert(geodesFound, part)
+                            table.insert(geodesFound, { model = geodeModel, part = part })
+                        end
+                    end
+                    
+                    local function attemptCollect(node)
+                        local part = node.part
+                        local model = node.model
+                        
+                        -- 1. Exploit Touch
+                        if firetouchinterest then
+                            firetouchinterest(root, part, 0)
+                            firetouchinterest(root, part, 1)
+                        end
+                        
+                        -- 2. ProximityPrompt / ClickDetector
+                        for _, obj in ipairs(model:GetDescendants()) do
+                            if obj:IsA("ProximityPrompt") then
+                                if fireproximityprompt then
+                                    fireproximityprompt(obj, 1, true)
+                                else
+                                    obj:InputHoldBegin()
+                                    task.wait(obj.HoldDuration + 0.1)
+                                    obj:InputHoldEnd()
+                                end
+                            elseif obj:IsA("ClickDetector") then
+                                if fireclickdetector then
+                                    fireclickdetector(obj)
+                                end
+                            end
                         end
                     end
                     
@@ -1209,25 +1237,25 @@ task.spawn(function()
                         if geodeCollectMethod == "Teleport Player" then
                             local originalCFrame = root.CFrame
                             root.Anchored = true
-                            for _, part in ipairs(geodesFound) do
-                                root.CFrame = part.CFrame
-                                task.wait(1)
-                                if firetouchinterest then
-                                    firetouchinterest(root, part, 0)
-                                    firetouchinterest(root, part, 1)
-                                end
+                            for _, node in ipairs(geodesFound) do
+                                root.CFrame = node.part.CFrame
+                                task.wait(0.5)
+                                
+                                -- Wiggle to trigger physical touch if needed
+                                root.CFrame = node.part.CFrame * CFrame.new(0, 1.5, 0)
+                                task.wait(0.2)
+                                root.CFrame = node.part.CFrame
+                                
+                                attemptCollect(node)
                                 task.wait(0.5)
                             end
                             root.CFrame = originalCFrame
                             task.wait(0.1)
                             root.Anchored = false
                         else
-                            for _, part in ipairs(geodesFound) do
-                                part.CFrame = root.CFrame
-                                if firetouchinterest then
-                                    firetouchinterest(root, part, 0)
-                                    firetouchinterest(root, part, 1)
-                                end
+                            for _, node in ipairs(geodesFound) do
+                                node.part.CFrame = root.CFrame
+                                attemptCollect(node)
                             end
                         end
                     end
