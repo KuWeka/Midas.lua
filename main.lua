@@ -261,6 +261,19 @@ local function isPanFull()
         local cur, max = string.match(text, "(%d+)%s*/%s*(%d+)")
         if cur and max then return tonumber(cur) >= tonumber(max) end
     end
+    
+    local pgui = LocalPlayer:FindFirstChild("PlayerGui")
+    if pgui then
+        local mainUI = pgui:FindFirstChild("MainUI")
+        local notifications = mainUI and mainUI:FindFirstChild("Notifications")
+        if notifications then
+            local panFull = notifications:FindFirstChild("Your pan is full! Wash it in nearby water!")
+            if panFull and panFull:IsA("GuiObject") and panFull.Visible then
+                return true
+            end
+        end
+    end
+    
     return false
 end
 
@@ -493,11 +506,32 @@ local function shouldAutoSell()
     
     local pgui = LocalPlayer:FindFirstChild("PlayerGui")
     if pgui then
+        -- 1. Cek notifikasi di MainUI
+        local mainUI = pgui:FindFirstChild("MainUI")
+        local notifications = mainUI and mainUI:FindFirstChild("Notifications")
+        if notifications then
+            local backpackFull = notifications:FindFirstChild("Your backpack is full!")
+            if backpackFull and backpackFull:IsA("GuiObject") and backpackFull.Visible then
+                return true
+            end
+            
+            -- Cek juga anak-anak lain di dalam Notifications, siapa tahu teksnya sedikit berbeda
+            for _, child in ipairs(notifications:GetChildren()) do
+                if child:IsA("TextLabel") and child.Visible then
+                    local text = string.lower(child.Text:gsub("<[^>]->", ""))
+                    if string.find(text, "backpack is full") then
+                        return true
+                    end
+                end
+            end
+        end
+
+        -- 2. Fallback cek di ToolUI (jika gamenya menggunakan UI lama)
         local toolUI = pgui:FindFirstChild("ToolUI")
         local fillingPan = toolUI and toolUI:FindFirstChild("FillingPan")
         if fillingPan then
-            local backpackFull = fillingPan:FindFirstChild("BackpackFull")
-            if backpackFull and backpackFull:IsA("GuiObject") and backpackFull.Visible then
+            local backpackFullOld = fillingPan:FindFirstChild("BackpackFull")
+            if backpackFullOld and backpackFullOld:IsA("GuiObject") and backpackFullOld.Visible then
                 return true
             end
             
