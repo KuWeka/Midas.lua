@@ -120,7 +120,7 @@ local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.
 
 local Window = Library:CreateWindow({
     Title = "Prospecting! Midas Touch",
-    SubTitle = "Ultimate V30",
+    SubTitle = "Ultimate V31",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -148,6 +148,7 @@ local Options = Library.Options
 local State = { 
     isFarming = false, 
     isSelling = false,
+    isUnloaded = false,
     digLocation = nil,
     panLocation = nil
 }
@@ -407,7 +408,33 @@ local function getTargetMerchant()
 end
 
 -- ==========================================
--- 5. AUTO SELL & WEBHOOK LOGIC
+-- 5. BYPASS TELEPORT HELPER
+-- ==========================================
+local function breakVelocity(char)
+    if not char then return end
+    task.spawn(function()
+        local startTime = tick()
+        while tick() - startTime < 1 do
+            for i = 1, #characterParts do
+                local part = characterParts[i]
+                if part and part.Parent then
+                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                end
+            end
+            task.wait()
+        end
+    end)
+end
+
+local function getWaypointFolder()
+    local folder = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Waypoints")
+    if not folder then folder = workspace:FindFirstChild("Waypoints") end
+    return folder
+end
+
+-- ==========================================
+-- 6. AUTO SELL & WEBHOOK LOGIC
 -- ==========================================
 local function tweenTo(targetPos)
     local char = LocalPlayer.Character
@@ -452,7 +479,14 @@ local function tweenTo(targetPos)
         end
     end)
     
-    while not arrived do task.wait(0.03) end
+    local tweenTimeout = tick()
+    while not arrived do
+        if tick() - tweenTimeout > 30 then
+            if conn and conn.Connected then conn:Disconnect() end
+            break
+        end
+        task.wait(0.03)
+    end
     
     if noclipConn then noclipConn:Disconnect() end
     for part, state in pairs(originalCollisions) do
@@ -563,11 +597,15 @@ local lastSellAttempt = 0
 local MAX_SELL_RETRIES = 3
 
 local function doSellTrip(originalCFrame, merchantModel, merchantPos, needToMove, moveMethod, safePos)
+    local char = LocalPlayer.Character
+    local lastSellFire = 0
     local spamConnection
     spamConnection = RunService.Heartbeat:Connect(function()
-        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if tick() - lastSellFire < 0.5 then return end
+        local root = char and char:FindFirstChild("HumanoidRootPart")
         local hasGamepass = Options.HasSellAnywhere and Options.HasSellAnywhere.Value
         if root and ((root.Position - merchantPos).Magnitude <= 49.9 or hasGamepass) then
+            lastSellFire = tick()
             pcall(function()
                 local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
                 local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
@@ -582,7 +620,7 @@ local function doSellTrip(originalCFrame, merchantModel, merchantPos, needToMove
         end
     end)
     
-    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then 
         if spamConnection then spamConnection:Disconnect() end
         return 
@@ -592,20 +630,7 @@ local function doSellTrip(originalCFrame, merchantModel, merchantPos, needToMove
     if needToMove then
         if moveMethod == "Instant (TP)" then
             char:MoveTo(safePos)
-            task.spawn(function()
-                local startTime = tick()
-                while tick() - startTime < 1 do
-                    if char then
-                        for _, part in ipairs(char:GetDescendants()) do
-                            if part:IsA("BasePart") then
-                                part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                            end
-                        end
-                    end
-                    task.wait()
-                end
-            end)
+            breakVelocity(char)
             task.wait(1.5)
         elseif moveMethod == "Tween" then
             tweenTo(safePos)
@@ -620,20 +645,7 @@ local function doSellTrip(originalCFrame, merchantModel, merchantPos, needToMove
         
         if moveMethod == "Instant (TP)" then
             char:MoveTo(originalCFrame.Position)
-            task.spawn(function()
-                local startTime = tick()
-                while tick() - startTime < 1 do
-                    if char then
-                        for _, part in ipairs(char:GetDescendants()) do
-                            if part:IsA("BasePart") then
-                                part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                            end
-                        end
-                    end
-                    task.wait()
-                end
-            end)
+            breakVelocity(char)
             task.wait(1.5)
         elseif moveMethod == "Tween" then
             tweenTo(originalCFrame.Position)
@@ -728,7 +740,8 @@ end
 
 -- Loop Anti-Deadlock untuk Lock
 task.spawn(function()
-    while task.wait(0.5) do
+    while not State.isUnloaded do
+        task.wait(0.5)
         if Options.AutoFavoriteToggle and Options.AutoFavoriteToggle.Value then
             scanAndLockBackpack()
         end
@@ -1164,12 +1177,12 @@ Tabs.Sell:AddButton({
 -- ==========================================
 -- 10. TAB 3: FAVOURITE (AUTO-LOCK)
 -- ==========================================
--- UI dinonaktifkan sementara dan akan dibangun ulang dari 0
+Tabs.Favourite:AddParagraph({ Title = "🚧 Dalam Pengembangan", Content = "Fitur Auto Lock sedang dibangun ulang dari awal dan akan hadir di update mendatang." })
 
 -- ==========================================
 -- 11. TAB 4: SHOP (REMOTE)
 -- ==========================================
--- Fitur Shop dinonaktifkan sementara dan akan dibangun ulang dari 0
+Tabs.Shop:AddParagraph({ Title = "🚧 Dalam Pengembangan", Content = "Fitur Shop sedang dibangun ulang dari awal dan akan hadir di update mendatang." })
 
 -- ==========================================
 -- 12. TAB 5: TELEPORT & SERVER HOP
@@ -1189,24 +1202,9 @@ local function doTeleport(targetPos)
     if not root then return end
     
     if TeleportMethod == "Instant (TP)" then
-        -- 1. Metode Dex++ (Anti-Nyangkut)
+        -- Gabungan Dex++ (Anti-Nyangkut) + Infinite Yield (Anti-Rollback)
         char:MoveTo(targetPos)
-        
-        -- 2. Metode Infinite Yield (Anti-Rollback)
-        task.spawn(function()
-            local startTime = tick()
-            while tick() - startTime < 1 do
-                if char then
-                    for _, part in ipairs(char:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                            part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                        end
-                    end
-                end
-                task.wait()
-            end
-        end)
+        breakVelocity(char)
     elseif TeleportMethod == "Tween" then
         tweenTo(targetPos)
     end
@@ -1225,26 +1223,7 @@ local WaypointDropdown = Tabs.Teleport:AddDropdown("WaypointSelector", {
 Tabs.Teleport:AddButton({
     Title = "🔄 Refresh Waypoints",
     Callback = function()
-        local pathStr = "workspace.Map.Waypoints"
-        local folder = nil
-        
-        local parts = string.split(pathStr, ".")
-        local current = game
-        local success = pcall(function()
-            for _, p in ipairs(parts) do
-                if p == "workspace" or p == "Workspace" then current = workspace
-                elseif p == "game" then current = game
-                else current = current:FindFirstChild(p) end
-                if not current then break end
-            end
-        end)
-        
-        if success and current and current ~= game then
-            folder = current
-        else
-            -- Fallback auto scan jika path salah
-            folder = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Waypoints") or workspace:FindFirstChild("Waypoints")
-        end
+        local folder = getWaypointFolder()
         
         if folder then
             local list = {}
@@ -1273,18 +1252,7 @@ Tabs.Teleport:AddButton({
         local wpName = Options.WaypointSelector and Options.WaypointSelector.Value
         if not wpName or wpName == "- Kosong -" then return end
         
-        local pathStr = "workspace.Map.Waypoints"
-        local current = game
-        local parts = string.split(pathStr, ".")
-        pcall(function()
-            for _, p in ipairs(parts) do
-                if p == "workspace" or p == "Workspace" then current = workspace
-                elseif p == "game" then current = game
-                else current = current:FindFirstChild(p) end
-            end
-        end)
-        
-        local folder = (current and current ~= game) and current or (workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Waypoints"))
+        local folder = getWaypointFolder()
         if folder then
             local target = folder:FindFirstChild(wpName)
             if target then
@@ -1294,7 +1262,6 @@ Tabs.Teleport:AddButton({
                 end
                 
                 if pos then
-                    -- Menambahkan offset tinggi (+6) dan geser ke depan/samping (+5) agar tidak nyangkut di dalam prop
                     doTeleport(pos + Vector3.new(0, 6, 5))
                 else
                     Library:Notify({ Title = "Error", Content = "Waypoint tidak memiliki posisi (bukan 3D object)!", Duration = 3 })
@@ -1410,7 +1377,7 @@ Tabs.Geode:AddDropdown("GeodeCollectMethod", {
 })
 
 task.spawn(function()
-    while true do
+    while not State.isUnloaded do
         task.wait(0.2)
         if autoCollectGeodes then
             local geodeFolder = workspace:FindFirstChild("Geode")
@@ -1458,46 +1425,17 @@ task.spawn(function()
                         if geodeCollectMethod == "Teleport Player" then
                             local originalCFrame = root.CFrame
                             for _, node in ipairs(geodesFound) do
-                                -- 1. Metode Dex++ (Anti-Nyangkut)
                                 char:MoveTo(node.part.Position + Vector3.new(0, 3, 0))
+                                breakVelocity(char)
                                 
-                                -- 2. Metode Infinite Yield (Anti-Rollback)
-                                task.spawn(function()
-                                    local startTime = tick()
-                                    while tick() - startTime < 1 do
-                                        if char then
-                                            for _, p in ipairs(char:GetDescendants()) do
-                                                if p:IsA("BasePart") then
-                                                    p.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                                    p.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                                                end
-                                            end
-                                        end
-                                        task.wait()
-                                    end
-                                end)
-                                
-                                task.wait(0.5) -- Tunggu karakter mendarat stabil
+                                task.wait(0.5)
                                 attemptCollect(node)
                                 task.wait(0.2)
                             end
                             
                             -- Kembali ke tempat semula
                             char:MoveTo(originalCFrame.Position)
-                            task.spawn(function()
-                                local startTime = tick()
-                                while tick() - startTime < 1 do
-                                    if char then
-                                        for _, p in ipairs(char:GetDescendants()) do
-                                            if p:IsA("BasePart") then
-                                                p.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                                p.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                                            end
-                                        end
-                                    end
-                                    task.wait()
-                                end
-                            end)
+                            breakVelocity(char)
                             task.wait(0.5)
                         else
                             for _, node in ipairs(geodesFound) do
@@ -1551,13 +1489,18 @@ table.insert(Connections, UserInputService.JumpRequest:Connect(function()
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
     if not root or not hum then return end
-    if MoveState.JP then root.Velocity = Vector3.new(root.Velocity.X, MoveState.JP_Val, root.Velocity.Z)
+    if MoveState.JP then root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, MoveState.JP_Val, root.AssemblyLinearVelocity.Z)
     elseif MoveState.IJ then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
 end))
 
 -- ==========================================
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
+Tabs.Changelog:AddParagraph({
+    Title = "V31 - Anti-Rollback & Full Audit Fix (19 Juli 2026)",
+    Content = "1. Bypass Teleport gabungan Dex++ (MoveTo) + Infinite Yield (BreakVelocity) diterapkan ke semua fitur.\n2. Fix crash: variabel char undefined di doSellTrip.\n3. SellAll remote throttle (0.5s cooldown) mencegah rate-limit/ban.\n4. tweenTo kini punya timeout 30 detik (anti-hang).\n5. Background loops (Auto Sell, Geode, Auto Lock) berhenti saat Unload.\n6. Fungsi breakVelocity() di-ekstrak (menghapus ~70 baris duplikat).\n7. Fix deprecated root.Velocity → AssemblyLinearVelocity.\n8. Tab Waypoint path resolver di-deduplikasi.\n9. Tab kosong (Favourite & Shop) kini menampilkan placeholder."
+})
+
 Tabs.Changelog:AddParagraph({
     Title = "V30 - Polish Update (18 Juli 2026)",
     Content = "1. shouldAutoSell scan dioptimasi (langsung target FillingPan).\n2. Sell Retry Verification: otomatis retry maks 3x jika gagal jual.\n3. tweenTo kini memiliki Noclip bawaan.\n4. Dead code dihapus (dynamicLerpTo, equipTool).\n5. Duplikat variabel (VirtualUser, pendingLocks) dibersihkan.\n6. Noclip redundan di Auto Sell dihapus.\n7. Script lebih ringan (1170 > 1141 baris)."
@@ -1598,6 +1541,7 @@ Tabs.Settings:AddButton({
     Callback = function()
         State.isFarming = false
         State.isSelling = false
+        State.isUnloaded = true
         for _, conn in ipairs(Connections) do
             if conn.Connected then conn:Disconnect() end
         end
@@ -1614,7 +1558,7 @@ SaveManager:SetLibrary(Library)
 InterfaceManager:SetLibrary(Library)
 
 InterfaceManager:SetFolder("ProspectingUI")
-SaveManager:SetFolder("Prospecting/MidasTouchV30")
+SaveManager:SetFolder("Prospecting/MidasTouchV31")
 
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
@@ -1624,7 +1568,7 @@ SaveManager:LoadAutoloadConfig()
 
 -- Background Loop untuk Auto Sell
 task.spawn(function()
-    while true do
+    while not State.isUnloaded do
         task.wait(1)
         if State.isFarming and not State.isSelling and shouldAutoSell() then
             local cur, max = getInventoryStats()
@@ -1634,14 +1578,9 @@ task.spawn(function()
                 Duration = 3 
             })
             
-            -- Hentikan Auto Farm agar karakter berhenti dig/pan
             Options.AutoFarmToggle:SetValue(false)
-            task.wait(1) -- Beri waktu agar loop dig/pan benar-benar berhenti
-            
-            -- Jual
+            task.wait(1)
             instantSellAll()
-            
-            -- Lanjut Auto Farm
             Options.AutoFarmToggle:SetValue(true)
         end
     end
