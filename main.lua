@@ -1148,7 +1148,176 @@ Tabs.Sell:AddButton({
 -- ==========================================
 -- 12. TAB 5: TELEPORT & SERVER HOP
 -- ==========================================
--- Fitur Teleport dinonaktifkan sementara dan akan dibangun ulang dari 0
+local TeleportMethod = "Instant (TP)"
+Tabs.Teleport:AddDropdown("TeleportMethod", {
+    Title = "Metode Teleport",
+    Values = {"Instant (TP)", "Tween"},
+    Default = 1,
+    Multi = false,
+    Callback = function(val) TeleportMethod = val end
+})
+
+local function doTeleport(targetPos)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    if TeleportMethod == "Instant (TP)" then
+        root.CFrame = CFrame.new(targetPos)
+    elseif TeleportMethod == "Tween" then
+        tweenTo(targetPos)
+    end
+end
+
+Tabs.Teleport:AddParagraph({ Title = "1. TELEPORT TO WAYPOINT", Content = "Pindah ke lokasi tertentu di dalam game." })
+
+Tabs.Teleport:AddInput("WaypointPath", {
+    Title = "Folder Waypoint (Path)",
+    Default = "workspace.Waypoints",
+    Numeric = false,
+    Finished = false,
+    Description = "Isi dengan path folder waypoint jika game menggunakan nama unik."
+})
+
+local WaypointDropdown = Tabs.Teleport:AddDropdown("WaypointSelector", {
+    Title = "Pilih Waypoint",
+    Values = {"- Kosong -"},
+    Default = 1,
+    Multi = false,
+})
+
+Tabs.Teleport:AddButton({
+    Title = "🔄 Refresh Waypoints",
+    Callback = function()
+        local pathStr = Options.WaypointPath and Options.WaypointPath.Value or "workspace.Waypoints"
+        local folder = nil
+        
+        local parts = string.split(pathStr, ".")
+        local current = game
+        local success = pcall(function()
+            for _, p in ipairs(parts) do
+                if p == "workspace" or p == "Workspace" then current = workspace
+                elseif p == "game" then current = game
+                else current = current:FindFirstChild(p) end
+                if not current then break end
+            end
+        end)
+        
+        if success and current and current ~= game then
+            folder = current
+        else
+            -- Fallback auto scan jika path salah
+            folder = workspace:FindFirstChild("Waypoints") or workspace:FindFirstChild("Spawns") or workspace:FindFirstChild("Deposits") or workspace:FindFirstChild("Locations")
+        end
+        
+        if folder then
+            local list = {}
+            for _, child in ipairs(folder:GetChildren()) do
+                if child:IsA("BasePart") or child:IsA("Model") or child:IsA("Folder") then
+                    table.insert(list, child.Name)
+                end
+            end
+            if #list > 0 then
+                table.sort(list)
+                WaypointDropdown:SetValues(list)
+                WaypointDropdown:SetValue(list[1])
+                Library:Notify({ Title = "Waypoints", Content = "Ditemukan " .. #list .. " waypoint!", Duration = 3 })
+            else
+                Library:Notify({ Title = "Waypoints", Content = "Folder ditemukan tapi kosong!", Duration = 3 })
+            end
+        else
+            Library:Notify({ Title = "Error", Content = "Folder Waypoint tidak ditemukan!", Duration = 3 })
+        end
+    end
+})
+
+Tabs.Teleport:AddButton({
+    Title = "🚀 Teleport ke Waypoint",
+    Callback = function()
+        local wpName = Options.WaypointSelector and Options.WaypointSelector.Value
+        if not wpName or wpName == "- Kosong -" then return end
+        
+        local pathStr = Options.WaypointPath and Options.WaypointPath.Value or "workspace.Waypoints"
+        local current = game
+        local parts = string.split(pathStr, ".")
+        pcall(function()
+            for _, p in ipairs(parts) do
+                if p == "workspace" or p == "Workspace" then current = workspace
+                elseif p == "game" then current = game
+                else current = current:FindFirstChild(p) end
+            end
+        end)
+        
+        local folder = (current and current ~= game) and current or workspace:FindFirstChild("Waypoints") or workspace:FindFirstChild("Deposits")
+        if folder then
+            local target = folder:FindFirstChild(wpName)
+            if target then
+                local pos
+                if target:IsA("BasePart") then pos = target.Position
+                elseif target:IsA("Model") and target.PrimaryPart then pos = target.PrimaryPart.Position
+                elseif target:IsA("Model") or target:IsA("Folder") then
+                    local p = target:FindFirstChildWhichIsA("BasePart")
+                    if p then pos = p.Position end
+                end
+                
+                if pos then
+                    doTeleport(pos + Vector3.new(0, 3, 0))
+                else
+                    Library:Notify({ Title = "Error", Content = "Waypoint tidak memiliki posisi (bukan 3D object)!", Duration = 3 })
+                end
+            end
+        end
+    end
+})
+
+Tabs.Teleport:AddParagraph({ Title = "2. TELEPORT TO PLAYER", Content = "Pindah ke pemain lain di server ini." })
+
+local PlayerDropdown = Tabs.Teleport:AddDropdown("PlayerSelector", {
+    Title = "Pilih Player",
+    Values = {"- Kosong -"},
+    Default = 1,
+    Multi = false,
+})
+
+Tabs.Teleport:AddButton({
+    Title = "🔄 Refresh Players",
+    Callback = function()
+        local list = {}
+        for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+            if p ~= LocalPlayer then
+                table.insert(list, p.Name)
+            end
+        end
+        if #list > 0 then
+            table.sort(list)
+            PlayerDropdown:SetValues(list)
+            PlayerDropdown:SetValue(list[1])
+            Library:Notify({ Title = "Players", Content = "Ditemukan " .. #list .. " player!", Duration = 3 })
+        else
+            Library:Notify({ Title = "Players", Content = "Tidak ada player lain di server ini.", Duration = 3 })
+        end
+    end
+})
+
+Tabs.Teleport:AddButton({
+    Title = "🧑 Teleport ke Player",
+    Callback = function()
+        local pName = Options.PlayerSelector and Options.PlayerSelector.Value
+        if not pName or pName == "- Kosong -" then return end
+        
+        local targetPlayer = game:GetService("Players"):FindFirstChild(pName)
+        if targetPlayer and targetPlayer.Character then
+            local root = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                doTeleport(root.Position + Vector3.new(0, 3, 0))
+            else
+                Library:Notify({ Title = "Error", Content = "Karakter player belum load/mati!", Duration = 3 })
+            end
+        else
+            Library:Notify({ Title = "Error", Content = "Player tidak ditemukan atau sudah keluar!", Duration = 3 })
+        end
+    end
+})
 
 -- ==========================================
 -- 13. TAB 6: MOVEMENT & MISC
