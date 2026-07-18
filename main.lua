@@ -511,16 +511,10 @@ local function shouldAutoSell()
         local mainUI = pgui:FindFirstChild("MainUI")
         local notifications = mainUI and mainUI:FindFirstChild("Notifications")
         if notifications then
-            local backpackFull = notifications:FindFirstChild("Your backpack is full!")
-            if backpackFull and backpackFull:IsA("GuiObject") and backpackFull.Visible then
-                return true
-            end
-            
-            -- Cek juga anak-anak lain di dalam Notifications, siapa tahu teksnya sedikit berbeda
-            for _, child in ipairs(notifications:GetChildren()) do
+            for _, child in ipairs(notifications:GetDescendants()) do
                 if child:IsA("TextLabel") and child.Visible then
                     local text = string.lower(child.Text:gsub("<[^>]->", ""))
-                    if string.find(text, "backpack is full") then
+                    if string.find(text, "backpack is full") or string.find(text, "pan is full") then
                         return true
                     end
                 end
@@ -551,7 +545,12 @@ local function shouldAutoSell()
     local cur, max = getInventoryStats()
     
     if mode == "Full Inventory" then
-        return (max > 0 and cur >= max)
+        if max > 0 then
+            -- Jual jika tas penuh, >= 98% penuh, atau tersisa <= 2 space (antisipasi item berat)
+            if cur >= max or cur >= (max * 0.98) or (max - cur) <= 2 then
+                return true
+            end
+        end
     elseif mode == "Target Inventory" then
         local targetStr = Options.TargetInventoryValue and Options.TargetInventoryValue.Value or "275"
         local target = tonumber(targetStr) or 275
