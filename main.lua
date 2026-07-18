@@ -566,7 +566,8 @@ local function doSellTrip(originalCFrame, merchantModel, merchantPos, needToMove
     local spamConnection
     spamConnection = RunService.Heartbeat:Connect(function()
         local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if root and (root.Position - merchantPos).Magnitude <= 49.9 then
+        local hasGamepass = Options.HasSellAnywhere and Options.HasSellAnywhere.Value
+        if root and ((root.Position - merchantPos).Magnitude <= 49.9 or hasGamepass) then
             pcall(function()
                 local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
                 local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
@@ -641,7 +642,8 @@ local function instantSellAll()
             return
         end
         
-        local needToMove = merchantDist > 45
+        local hasGamepass = Options.HasSellAnywhere and Options.HasSellAnywhere.Value
+        local needToMove = (merchantDist > 45) and not hasGamepass
         local moveMethod = Options.SellMoveMethod and Options.SellMoveMethod.Value or "Instant (TP)"
         
         local safePos
@@ -1066,6 +1068,7 @@ locPara = Tabs.Main:AddParagraph({ Title = " Saved Locations", Content = " Water
 -- ==========================================
 -- 9. TAB 2: AUTO-SELL
 -- ==========================================
+Tabs.Sell:AddToggle("HasSellAnywhere", { Title = "Has 'Sell Anywhere' Gamepass", Default = false })
 Tabs.Sell:AddToggle("AutoSellToggle", { Title = "Enable Auto Sell", Default = true })
 
 Tabs.Sell:AddDropdown("MerchantSelector", {
