@@ -131,6 +131,7 @@ local Window = Library:CreateWindow({
 local Tabs = {
     Main = Window:AddTab({ Title = "Main ", Icon = "home" }),
     Move = Window:AddTab({ Title = "Movement & Misc ", Icon = "footprints" }),
+    Geode = Window:AddTab({ Title = "Geode Farm ", Icon = "gem" }),
     Sell = Window:AddTab({ Title = "Auto Sell ", Icon = "shopping-cart" }),
     Favourite = Window:AddTab({ Title = "Auto Lock ", Icon = "heart" }),
     Shop = Window:AddTab({ Title = "Shop ", Icon = "shopping-cart" }),
@@ -1165,8 +1166,11 @@ Tabs.Move:AddInput("DiscordWebhook", {
 
 Tabs.Move:AddToggle("LogItemsToDiscord", { Title = "Log Locked/Sold Items to Discord", Default = false, Callback = function(v) LogItems = v end })
 
+-- ==========================================
+-- 14. TAB 7: GEODE FARM
+-- ==========================================
 local autoCollectGeodes = false
-Tabs.Move:AddToggle("AutoCollectGeodes", { 
+Tabs.Geode:AddToggle("AutoCollectGeodes", { 
     Title = "Auto Collect Geodes", 
     Description = "Otomatis mengambil semua Geode yang muncul",
     Default = false, 
@@ -1176,7 +1180,7 @@ Tabs.Move:AddToggle("AutoCollectGeodes", {
 })
 
 local geodeCollectMethod = "Teleport Player"
-Tabs.Move:AddDropdown("GeodeCollectMethod", {
+Tabs.Geode:AddDropdown("GeodeCollectMethod", {
     Title = "Metode Ambil Geode",
     Values = {"Teleport Player", "Bring Geode"},
     Multi = false,
