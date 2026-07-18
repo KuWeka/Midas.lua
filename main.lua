@@ -1165,6 +1165,43 @@ Tabs.Move:AddInput("DiscordWebhook", {
 
 Tabs.Move:AddToggle("LogItemsToDiscord", { Title = "Log Locked/Sold Items to Discord", Default = false, Callback = function(v) LogItems = v end })
 
+local autoCollectGeodes = false
+Tabs.Move:AddToggle("AutoCollectGeodes", { 
+    Title = "Auto Collect Geodes", 
+    Description = "Otomatis mengambil semua Geode yang muncul",
+    Default = false, 
+    Callback = function(v) 
+        autoCollectGeodes = v 
+    end 
+})
+
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+        if autoCollectGeodes then
+            local geodeFolder = workspace:FindFirstChild("Geode")
+            if geodeFolder then
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    for _, geodeModel in ipairs(geodeFolder:GetChildren()) do
+                        local part = geodeModel:IsA("BasePart") and geodeModel or geodeModel:FindFirstChildWhichIsA("BasePart")
+                        if part then
+                            -- Pindahkan geode ke pemain
+                            part.CFrame = root.CFrame
+                            -- Sentuh geode secara instan (menggunakan exploit function jika tersedia)
+                            if firetouchinterest then
+                                firetouchinterest(root, part, 0)
+                                firetouchinterest(root, part, 1)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
 Tabs.Move:AddToggle("WalkSpeed", { Title = "WalkSpeed", Default = false, Callback = function(v) MoveState.WS = v end })
 Tabs.Move:AddSlider("WalkSpeedVal", { Title = "Speed", Default = 50, Min = 16, Max = 350, Rounding = 0, Callback = function(v) MoveState.WS_Val = v end })
 Tabs.Move:AddToggle("JumpPower", { Title = "JumpPower", Default = false, Callback = function(v) MoveState.JP = v end })
