@@ -1208,15 +1208,19 @@ task.spawn(function()
                     if #geodesFound > 0 then
                         if geodeCollectMethod == "Teleport Player" then
                             local originalCFrame = root.CFrame
+                            root.Anchored = true
                             for _, part in ipairs(geodesFound) do
                                 root.CFrame = part.CFrame
-                                task.wait(0.15)
+                                task.wait(1)
                                 if firetouchinterest then
                                     firetouchinterest(root, part, 0)
                                     firetouchinterest(root, part, 1)
                                 end
+                                task.wait(0.5)
                             end
                             root.CFrame = originalCFrame
+                            task.wait(0.1)
+                            root.Anchored = false
                         else
                             for _, part in ipairs(geodesFound) do
                                 part.CFrame = root.CFrame
