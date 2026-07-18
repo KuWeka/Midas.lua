@@ -129,14 +129,14 @@ local Window = Library:CreateWindow({
 })
 
 local Tabs = {
-    Main = Window:AddTab({ Title = "Main ⛏️", Icon = "home" }),
-    Move = Window:AddTab({ Title = "Movement & Misc 🏃", Icon = "footprints" }),
-    Sell = Window:AddTab({ Title = "Auto Sell 💰", Icon = "shopping-cart" }),
-    Favourite = Window:AddTab({ Title = "Auto Lock 🔒", Icon = "heart" }),
-    Shop = Window:AddTab({ Title = "Shop 🏪", Icon = "shopping-cart" }),
-    Teleport = Window:AddTab({ Title = "Teleport 🗺️", Icon = "map" }),
-    Changelog = Window:AddTab({ Title = "Changelog 📝", Icon = "scroll" }),
-    Settings = Window:AddTab({ Title = "Settings ⚙️", Icon = "settings" })
+    Main = Window:AddTab({ Title = "Main ", Icon = "home" }),
+    Move = Window:AddTab({ Title = "Movement & Misc ", Icon = "footprints" }),
+    Sell = Window:AddTab({ Title = "Auto Sell ", Icon = "shopping-cart" }),
+    Favourite = Window:AddTab({ Title = "Auto Lock ", Icon = "heart" }),
+    Shop = Window:AddTab({ Title = "Shop ", Icon = "shopping-cart" }),
+    Teleport = Window:AddTab({ Title = "Teleport ", Icon = "map" }),
+    Changelog = Window:AddTab({ Title = "Changelog ", Icon = "scroll" }),
+    Settings = Window:AddTab({ Title = "Settings ", Icon = "settings" })
 }
 
 local Options = Library.Options
@@ -626,7 +626,7 @@ local function instantSellAll()
             local invAfter = getInventoryStats()
             
             if invAfter < invBefore then
-                Library:Notify({ Title = "Sell Success", Content = "Berhasil menjual! (" .. invBefore .. " → " .. invAfter .. ")", Duration = 3 })
+                Library:Notify({ Title = "Sell Success", Content = "Berhasil menjual! (" .. invBefore .. "  " .. invAfter .. ")", Duration = 3 })
                 break
             end
             
@@ -929,34 +929,34 @@ local sandStr = "Not set"
 local locPara = nil
 
 Tabs.Main:AddButton({
-    Title = "🌊 Set Water Location",
+    Title = " Set Water Location",
     Description = "Save current position for Panning",
     Callback = function()
         local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if root then
             State.panLocation = root.Position
             waterStr = string.format("X: %.1f, Y: %.1f, Z: %.1f", root.Position.X, root.Position.Y, root.Position.Z)
-            if locPara then locPara:SetDesc(string.format("🌊 Water: %s\n🏜️ Sand: %s", waterStr, sandStr)) end
+            if locPara then locPara:SetDesc(string.format(" Water: %s\n Sand: %s", waterStr, sandStr)) end
             Library:Notify({ Title = "Success", Content = "Water location saved!", Duration = 3 })
         end
     end
 })
 
 Tabs.Main:AddButton({
-    Title = "🏜️ Set Sand Location",
+    Title = " Set Sand Location",
     Description = "Save current position for Digging",
     Callback = function()
         local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if root then
             State.digLocation = root.Position
             sandStr = string.format("X: %.1f, Y: %.1f, Z: %.1f", root.Position.X, root.Position.Y, root.Position.Z)
-            if locPara then locPara:SetDesc(string.format("🌊 Water: %s\n🏜️ Sand: %s", waterStr, sandStr)) end
+            if locPara then locPara:SetDesc(string.format(" Water: %s\n Sand: %s", waterStr, sandStr)) end
             Library:Notify({ Title = "Success", Content = "Dig location saved!", Duration = 3 })
         end
     end
 })
 
-locPara = Tabs.Main:AddParagraph({ Title = "📍 Saved Locations", Content = "🌊 Water: Not set\n🏜️ Sand: Not set" })
+locPara = Tabs.Main:AddParagraph({ Title = " Saved Locations", Content = " Water: Not set\n Sand: Not set" })
 
 -- ==========================================
 -- 9. TAB 2: AUTO-SELL
