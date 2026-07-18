@@ -1236,19 +1236,17 @@ task.spawn(function()
                     if #geodesFound > 0 then
                         if geodeCollectMethod == "Teleport Player" then
                             local originalCFrame = root.CFrame
-                            root.Anchored = true
                             for _, node in ipairs(geodesFound) do
-                                root.CFrame = node.part.CFrame
-                                task.wait(0.5)
-                                
-                                -- Wiggle to trigger physical touch if needed
-                                root.CFrame = node.part.CFrame * CFrame.new(0, 1.5, 0)
-                                task.wait(0.2)
-                                root.CFrame = node.part.CFrame
+                                root.Anchored = true
+                                root.CFrame = node.part.CFrame * CFrame.new(0, 3, 0)
+                                task.wait(0.1)
+                                root.Anchored = false -- Jatuhkan agar benar-benar menginjak secara fisik
+                                task.wait(0.5) -- Tunggu karakter mendarat di atasnya
                                 
                                 attemptCollect(node)
-                                task.wait(0.5)
+                                task.wait(0.2)
                             end
+                            root.Anchored = true
                             root.CFrame = originalCFrame
                             task.wait(0.1)
                             root.Anchored = false
