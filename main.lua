@@ -591,7 +591,21 @@ local function doSellTrip(originalCFrame, merchantModel, merchantPos, needToMove
     
     if needToMove then
         if moveMethod == "Instant (TP)" then
-            root.CFrame = CFrame.new(safePos)
+            char:MoveTo(safePos)
+            task.spawn(function()
+                local startTime = tick()
+                while tick() - startTime < 1 do
+                    if char then
+                        for _, part in ipairs(char:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                            end
+                        end
+                    end
+                    task.wait()
+                end
+            end)
             task.wait(1.5)
         elseif moveMethod == "Tween" then
             tweenTo(safePos)
@@ -605,10 +619,22 @@ local function doSellTrip(originalCFrame, merchantModel, merchantPos, needToMove
         end
         
         if moveMethod == "Instant (TP)" then
-            root.CFrame = originalCFrame
-            root.Anchored = true
-            task.wait(0.1)
-            root.Anchored = false
+            char:MoveTo(originalCFrame.Position)
+            task.spawn(function()
+                local startTime = tick()
+                while tick() - startTime < 1 do
+                    if char then
+                        for _, part in ipairs(char:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                            end
+                        end
+                    end
+                    task.wait()
+                end
+            end)
+            task.wait(1.5)
         elseif moveMethod == "Tween" then
             tweenTo(originalCFrame.Position)
         elseif moveMethod == "PathFind" then
@@ -1163,7 +1189,24 @@ local function doTeleport(targetPos)
     if not root then return end
     
     if TeleportMethod == "Instant (TP)" then
-        root.CFrame = CFrame.new(targetPos)
+        -- 1. Metode Dex++ (Anti-Nyangkut)
+        char:MoveTo(targetPos)
+        
+        -- 2. Metode Infinite Yield (Anti-Rollback)
+        task.spawn(function()
+            local startTime = tick()
+            while tick() - startTime < 1 do
+                if char then
+                    for _, part in ipairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                            part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        end
+                    end
+                end
+                task.wait()
+            end
+        end)
     elseif TeleportMethod == "Tween" then
         tweenTo(targetPos)
     end
@@ -1415,19 +1458,47 @@ task.spawn(function()
                         if geodeCollectMethod == "Teleport Player" then
                             local originalCFrame = root.CFrame
                             for _, node in ipairs(geodesFound) do
-                                root.Anchored = true
-                                root.CFrame = node.part.CFrame * CFrame.new(0, 3, 0)
-                                task.wait(0.1)
-                                root.Anchored = false -- Jatuhkan agar benar-benar menginjak secara fisik
-                                task.wait(0.5) -- Tunggu karakter mendarat di atasnya
+                                -- 1. Metode Dex++ (Anti-Nyangkut)
+                                char:MoveTo(node.part.Position + Vector3.new(0, 3, 0))
                                 
+                                -- 2. Metode Infinite Yield (Anti-Rollback)
+                                task.spawn(function()
+                                    local startTime = tick()
+                                    while tick() - startTime < 1 do
+                                        if char then
+                                            for _, p in ipairs(char:GetDescendants()) do
+                                                if p:IsA("BasePart") then
+                                                    p.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                                    p.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                                                end
+                                            end
+                                        end
+                                        task.wait()
+                                    end
+                                end)
+                                
+                                task.wait(0.5) -- Tunggu karakter mendarat stabil
                                 attemptCollect(node)
                                 task.wait(0.2)
                             end
-                            root.Anchored = true
-                            root.CFrame = originalCFrame
-                            task.wait(0.1)
-                            root.Anchored = false
+                            
+                            -- Kembali ke tempat semula
+                            char:MoveTo(originalCFrame.Position)
+                            task.spawn(function()
+                                local startTime = tick()
+                                while tick() - startTime < 1 do
+                                    if char then
+                                        for _, p in ipairs(char:GetDescendants()) do
+                                            if p:IsA("BasePart") then
+                                                p.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                                p.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                                            end
+                                        end
+                                    end
+                                    task.wait()
+                                end
+                            end)
+                            task.wait(0.5)
                         else
                             for _, node in ipairs(geodesFound) do
                                 node.part.CFrame = root.CFrame
