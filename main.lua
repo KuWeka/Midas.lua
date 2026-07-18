@@ -1385,6 +1385,13 @@ task.spawn(function()
     while true do
         task.wait(1)
         if State.isFarming and not State.isSelling and shouldAutoSell() then
+            local cur, max = getInventoryStats()
+            Library:Notify({ 
+                Title = "Bag Full!", 
+                Content = string.format("Tas penuh (%d / %d). Memulai Auto Sell...", cur, max), 
+                Duration = 3 
+            })
+            
             -- Hentikan Auto Farm agar karakter berhenti dig/pan
             Options.AutoFarmToggle:SetValue(false)
             task.wait(1) -- Beri waktu agar loop dig/pan benar-benar berhenti
