@@ -120,7 +120,7 @@ local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.
 
 local Window = Library:CreateWindow({
     Title = "Prospecting! Midas Touch",
-    SubTitle = "Ultimate V29",
+    SubTitle = "Ultimate V30",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -1104,8 +1104,38 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
-    Title = "Update Terbaru (18 Juli 2026, 12:40)",
-    Content = "1. Polish: shouldAutoSell scan dioptimasi — langsung target FillingPan children, bukan full scan PlayerGui.\n2. Polish: Sell Retry Verification — setelah kembali dari merchant, script mengecek apakah inventory berkurang. Jika gagal, otomatis retry hingga 3x.\n3. Fix: Duplikat variabel & dead code dihapus.\n4. Fix: tweenTo memiliki Noclip bawaan."
+    Title = "\u2b50 V30 — Polish Update (18 Juli 2026)",
+    Content = "1. shouldAutoSell scan dioptimasi (langsung target FillingPan).\n2. Sell Retry Verification: otomatis retry maks 3x jika gagal jual.\n3. tweenTo kini memiliki Noclip bawaan.\n4. Dead code dihapus (dynamicLerpTo, equipTool).\n5. Duplikat variabel (VirtualUser, pendingLocks) dibersihkan.\n6. Noclip redundan di Auto Sell dihapus.\n7. Script lebih ringan (1170 → 1141 baris)."
+})
+
+Tabs.Changelog:AddParagraph({
+    Title = "\u{1f6e0}\u{fe0f} V29.3 — Hotfix (18 Juli 2026, 01:03)",
+    Content = "1. Memperbaiki crash 'attempt to call a nil value' — fungsi tweenTo & pathfindTo tidak sengaja terhapus saat refactor.\n2. Auto Farm ikut mati karena Auto Sell crash (efek domino) — sudah diperbaiki."
+})
+
+Tabs.Changelog:AddParagraph({
+    Title = "\u{1f4e6} V29.2 — Inventory Fix (18 Juli 2026, 00:55)",
+    Content = "1. Fix pembacaan inventory langsung dari InventorySpace TextLabel.\n2. Auto Sell tidak lagi salah baca angka Pan Fill sebagai Inventory."
+})
+
+Tabs.Changelog:AddParagraph({
+    Title = "\u{1f41b} V29.1 — Syntax Fix (18 Juli 2026, 00:27)",
+    Content = "1. Fix Syntax Error pada single-line if-elseif yang menyebabkan script gagal di-execute di beberapa executor."
+})
+
+Tabs.Changelog:AddParagraph({
+    Title = "\u{1f680} V29 — PathFind & Unified Sell (17 Juli 2026)",
+    Content = "1. Menambahkan metode PathFind (AI Pathfinding) ke Auto Sell.\n2. Semua metode pergerakan (TP, Tween, Walk, PathFind) kini berlaku untuk Auto Sell dan Sell All Now.\n3. Sistem spam SellAll saat memasuki area 49.9 studs dari merchant.\n4. Fix bug PathFind & Walk gagal karena karakter terkunci (Anchored)."
+})
+
+Tabs.Changelog:AddParagraph({
+    Title = "\u2699\ufe0f V28 — Tween Flyby Sell (17 Juli 2026)",
+    Content = "1. Logika Tween Flyby: spam trigger SellAll saat melewati area merchant.\n2. Dropdown metode pergerakan jual (Instant TP, Tween, Walk).\n3. Anti-Cheat Knightmare bypass ditingkatkan."
+})
+
+Tabs.Changelog:AddParagraph({
+    Title = "\u{1f4a1} V27 — Auto Lock & Movement (16 Juli 2026)",
+    Content = "1. Tab Auto Lock (Favourite) ditambahkan.\n2. WalkSpeed, JumpPower, Infinite Jump, Smart NoClip.\n3. Anti-AFK system.\n4. Discord Webhook logging."
 })
 
 Tabs.Settings:AddButton({
@@ -1129,7 +1159,7 @@ SaveManager:SetLibrary(Library)
 InterfaceManager:SetLibrary(Library)
 
 InterfaceManager:SetFolder("ProspectingUI")
-SaveManager:SetFolder("Prospecting/MidasTouchV29")
+SaveManager:SetFolder("Prospecting/MidasTouchV30")
 
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
