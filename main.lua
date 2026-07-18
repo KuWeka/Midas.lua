@@ -927,20 +927,7 @@ local function toggleAutoFarm(value)
                     end
                 end
                 
-                if shouldAutoSell() then
-                    task.spawn(function()
-                        -- Matikan toggle UI Auto Farm
-                        Options.AutoFarmToggle:SetValue(false)
-                        task.wait(0.5)
-                        
-                        -- Jalankan proses jual beli sampai kembali
-                        instantSellAll()
-                        
-                        -- Nyalakan lagi toggle UI Auto Farm
-                        Options.AutoFarmToggle:SetValue(true)
-                    end)
-                    break -- Matikan thread loop Auto Farm yang sedang berjalan saat ini
-                end
+                -- [DIHAPUS] Pengecekan shouldAutoSell() dipindah ke background loop independen agar tidak tersangkut saat panning
                 
                 if not isPanFull() then
                     dig()
@@ -1392,5 +1379,23 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 
 Window:SelectTab(1)
 SaveManager:LoadAutoloadConfig()
+
+-- Background Loop untuk Auto Sell
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if State.isFarming and not State.isSelling and shouldAutoSell() then
+            -- Hentikan Auto Farm agar karakter berhenti dig/pan
+            Options.AutoFarmToggle:SetValue(false)
+            task.wait(1) -- Beri waktu agar loop dig/pan benar-benar berhenti
+            
+            -- Jual
+            instantSellAll()
+            
+            -- Lanjut Auto Farm
+            Options.AutoFarmToggle:SetValue(true)
+        end
+    end
+end)
 
 Library:Notify({ Title = "Script Loaded!", Content = "Midas Touch (By Weka)", Duration = 5 })
