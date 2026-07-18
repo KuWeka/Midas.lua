@@ -205,7 +205,7 @@ local function getInventoryStats()
         local invSpace = pgui:FindFirstChild("ToolUI") and pgui.ToolUI:FindFirstChild("FillingPan") and pgui.ToolUI.FillingPan:FindFirstChild("InventorySpace")
         if invSpace and invSpace:IsA("TextLabel") then
             local text = invSpace.Text:gsub("<[^>]->", ""):gsub(",", "")
-            local curStr, maxStr = string.match(text, "^%s*(%d+)%s*/%s*(%d+)%s*$")
+            local curStr, maxStr = string.match(text, "(%d+)%s*/%s*(%d+)")
             if curStr and maxStr then
                 return tonumber(curStr), tonumber(maxStr)
             end
@@ -214,7 +214,7 @@ local function getInventoryStats()
         for _, desc in ipairs(pgui:GetDescendants()) do
             if desc:IsA("TextLabel") and desc.Visible and (desc.Name == "InventorySpace" or desc.Name == "InventoryText") then
                 local text = desc.Text:gsub("<[^>]->", ""):gsub(",", "")
-                local curStr, maxStr = string.match(text, "^%s*(%d+)%s*/%s*(%d+)%s*$")
+                local curStr, maxStr = string.match(text, "(%d+)%s*/%s*(%d+)")
                 if curStr and maxStr then
                     return tonumber(curStr), tonumber(maxStr)
                 end
@@ -497,7 +497,7 @@ local function shouldAutoSell()
         local fillingPan = toolUI and toolUI:FindFirstChild("FillingPan")
         if fillingPan then
             local backpackFull = fillingPan:FindFirstChild("BackpackFull")
-            if backpackFull and backpackFull:IsA("TextLabel") and backpackFull.Visible then
+            if backpackFull and backpackFull:IsA("GuiObject") and backpackFull.Visible then
                 return true
             end
             
