@@ -1175,6 +1175,15 @@ Tabs.Move:AddToggle("AutoCollectGeodes", {
     end 
 })
 
+local geodeCollectMethod = "Teleport Player"
+Tabs.Move:AddDropdown("GeodeCollectMethod", {
+    Title = "Metode Ambil Geode",
+    Values = {"Teleport Player", "Bring Geode"},
+    Multi = false,
+    Default = 1,
+    Callback = function(v) geodeCollectMethod = v end
+})
+
 task.spawn(function()
     while true do
         task.wait(0.2)
@@ -1184,15 +1193,33 @@ task.spawn(function()
                 local char = LocalPlayer.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 if root then
+                    local geodesFound = {}
                     for _, geodeModel in ipairs(geodeFolder:GetChildren()) do
                         local part = geodeModel:IsA("BasePart") and geodeModel or geodeModel:FindFirstChildWhichIsA("BasePart")
                         if part then
-                            -- Pindahkan geode ke pemain
-                            part.CFrame = root.CFrame
-                            -- Sentuh geode secara instan (menggunakan exploit function jika tersedia)
-                            if firetouchinterest then
-                                firetouchinterest(root, part, 0)
-                                firetouchinterest(root, part, 1)
+                            table.insert(geodesFound, part)
+                        end
+                    end
+                    
+                    if #geodesFound > 0 then
+                        if geodeCollectMethod == "Teleport Player" then
+                            local originalCFrame = root.CFrame
+                            for _, part in ipairs(geodesFound) do
+                                root.CFrame = part.CFrame
+                                task.wait(0.15)
+                                if firetouchinterest then
+                                    firetouchinterest(root, part, 0)
+                                    firetouchinterest(root, part, 1)
+                                end
+                            end
+                            root.CFrame = originalCFrame
+                        else
+                            for _, part in ipairs(geodesFound) do
+                                part.CFrame = root.CFrame
+                                if firetouchinterest then
+                                    firetouchinterest(root, part, 0)
+                                    firetouchinterest(root, part, 1)
+                                end
                             end
                         end
                     end
