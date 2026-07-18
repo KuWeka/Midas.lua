@@ -990,6 +990,77 @@ Tabs.Main:AddButton({
     end
 })
 
+local function autoDetectLocations()
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local function getClosest(folderName)
+        local folder = workspace:FindFirstChild(folderName)
+        if not folder then return nil end
+
+        local closest = nil
+        local shortestDist = math.huge
+
+        for _, desc in ipairs(folder:GetDescendants()) do
+            if desc:IsA("BasePart") then
+                local dist = (desc.Position - root.Position).Magnitude
+                if dist < shortestDist then
+                    shortestDist = dist
+                    closest = desc.Position
+                end
+            end
+        end
+        return closest
+    end
+
+    local nearestSand = getClosest("Deposits")
+    local nearestWater1 = getClosest("Water")
+    local nearestWater2 = getClosest("Rivers")
+
+    local nearestWater = nil
+    local rootPos = root.Position
+    if nearestWater1 and nearestWater2 then
+        if (nearestWater1 - rootPos).Magnitude < (nearestWater2 - rootPos).Magnitude then
+            nearestWater = nearestWater1
+        else
+            nearestWater = nearestWater2
+        end
+    elseif nearestWater1 then
+        nearestWater = nearestWater1
+    else
+        nearestWater = nearestWater2
+    end
+
+    if nearestSand then
+        State.digLocation = nearestSand
+        sandStr = string.format("X: %.1f, Y: %.1f, Z: %.1f (Auto)", nearestSand.X, nearestSand.Y, nearestSand.Z)
+    end
+    
+    if nearestWater then
+        State.panLocation = nearestWater
+        waterStr = string.format("X: %.1f, Y: %.1f, Z: %.1f (Auto)", nearestWater.X, nearestWater.Y, nearestWater.Z)
+    end
+
+    if locPara then locPara:SetDesc(string.format(" Water: %s\n Sand: %s", waterStr, sandStr)) end
+    
+    if nearestSand and nearestWater then
+        Library:Notify({ Title = "Success", Content = "Auto-detected nearby Water & Sand!", Duration = 4 })
+    elseif nearestSand then
+        Library:Notify({ Title = "Partial", Content = "Found Sand, but no Water nearby.", Duration = 4 })
+    elseif nearestWater then
+        Library:Notify({ Title = "Partial", Content = "Found Water, but no Sand nearby.", Duration = 4 })
+    else
+        Library:Notify({ Title = "Failed", Content = "No Water or Sand found nearby!", Duration = 4 })
+    end
+end
+
+Tabs.Main:AddButton({
+    Title = " Auto Detect Nearby Locations",
+    Description = "Scan for closest water and sand automatically",
+    Callback = autoDetectLocations
+})
+
 locPara = Tabs.Main:AddParagraph({ Title = " Saved Locations", Content = " Water: Not set\n Sand: Not set" })
 
 -- ==========================================
