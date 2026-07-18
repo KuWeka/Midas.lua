@@ -1171,13 +1171,6 @@ end
 
 Tabs.Teleport:AddParagraph({ Title = "1. TELEPORT TO WAYPOINT", Content = "Pindah ke lokasi tertentu di dalam game." })
 
-Tabs.Teleport:AddInput("WaypointPath", {
-    Title = "Folder Waypoint (Path)",
-    Default = "workspace.Map.Waypoints",
-    Numeric = false,
-    Finished = false,
-    Description = "Isi dengan path folder waypoint jika game menggunakan nama unik."
-})
 
 local WaypointDropdown = Tabs.Teleport:AddDropdown("WaypointSelector", {
     Title = "Pilih Waypoint",
@@ -1189,7 +1182,7 @@ local WaypointDropdown = Tabs.Teleport:AddDropdown("WaypointSelector", {
 Tabs.Teleport:AddButton({
     Title = "🔄 Refresh Waypoints",
     Callback = function()
-        local pathStr = Options.WaypointPath and Options.WaypointPath.Value or "workspace.Map.Waypoints"
+        local pathStr = "workspace.Map.Waypoints"
         local folder = nil
         
         local parts = string.split(pathStr, ".")
@@ -1237,7 +1230,7 @@ Tabs.Teleport:AddButton({
         local wpName = Options.WaypointSelector and Options.WaypointSelector.Value
         if not wpName or wpName == "- Kosong -" then return end
         
-        local pathStr = Options.WaypointPath and Options.WaypointPath.Value or "workspace.Map.Waypoints"
+        local pathStr = "workspace.Map.Waypoints"
         local current = game
         local parts = string.split(pathStr, ".")
         pcall(function()
