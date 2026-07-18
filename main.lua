@@ -493,11 +493,20 @@ local function shouldAutoSell()
     
     local pgui = LocalPlayer:FindFirstChild("PlayerGui")
     if pgui then
-        for _, desc in ipairs(pgui:GetDescendants()) do
-            if desc:IsA("TextLabel") and desc.Visible then
-                local text = desc.Text:gsub("<[^>]->", "")
-                if string.find(string.lower(text), "backpack is full") then
-                    return true
+        local toolUI = pgui:FindFirstChild("ToolUI")
+        local fillingPan = toolUI and toolUI:FindFirstChild("FillingPan")
+        if fillingPan then
+            local backpackFull = fillingPan:FindFirstChild("BackpackFull")
+            if backpackFull and backpackFull:IsA("TextLabel") and backpackFull.Visible then
+                return true
+            end
+            
+            for _, child in ipairs(fillingPan:GetChildren()) do
+                if child:IsA("TextLabel") and child.Visible then
+                    local text = child.Text:gsub("<[^>]->", "")
+                    if string.find(string.lower(text), "backpack is full") or string.find(string.lower(text), "full") then
+                        return true
+                    end
                 end
             end
         end
@@ -517,6 +526,68 @@ local function shouldAutoSell()
 end
 
 local lastSellAttempt = 0
+local MAX_SELL_RETRIES = 3
+
+local function doSellTrip(originalCFrame, merchantModel, merchantPos, needToMove, moveMethod, safePos)
+    local spamConnection
+    spamConnection = RunService.Heartbeat:Connect(function()
+        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if root and (root.Position - merchantPos).Magnitude <= 49.9 then
+            pcall(function()
+                local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
+                local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
+                if sellRemote then
+                    if sellRemote:IsA("RemoteFunction") then 
+                        sellRemote:InvokeServer()
+                    elseif sellRemote:IsA("RemoteEvent") then 
+                        sellRemote:FireServer() 
+                    end
+                end
+            end)
+        end
+    end)
+    
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then 
+        if spamConnection then spamConnection:Disconnect() end
+        return 
+    end
+    root.Anchored = false
+    
+    if needToMove then
+        if moveMethod == "Instant (TP)" then
+            root.CFrame = CFrame.new(safePos)
+            task.wait(1.5)
+        elseif moveMethod == "Tween" then
+            tweenTo(safePos)
+            task.wait(1.5)
+        elseif moveMethod == "PathFind" then
+            pathfindTo(safePos)
+            task.wait(1.5)
+        else
+            walkTo(safePos)
+            task.wait(1.5)
+        end
+        
+        if moveMethod == "Instant (TP)" then
+            root.CFrame = originalCFrame
+            root.Anchored = true
+            task.wait(0.1)
+            root.Anchored = false
+        elseif moveMethod == "Tween" then
+            tweenTo(originalCFrame.Position)
+        elseif moveMethod == "PathFind" then
+            pathfindTo(originalCFrame.Position)
+        else
+            walkTo(originalCFrame.Position)
+        end
+    else
+        task.wait(1.5)
+    end
+    
+    if spamConnection then spamConnection:Disconnect() end
+end
+
 local function instantSellAll()
     if State.isSelling then return end
     if tick() - lastSellAttempt < 2 then return end 
@@ -546,59 +617,27 @@ local function instantSellAll()
             safePos = merchantPos + Vector3.new(3, 1, 0)
         end
         
-        local spamConnection
-        spamConnection = RunService.Heartbeat:Connect(function()
-            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if root and (root.Position - merchantPos).Magnitude <= 49.9 then
-                pcall(function()
-                    local shopFolder = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Shop")
-                    local sellRemote = shopFolder and shopFolder:FindFirstChild("SellAll")
-                    if sellRemote then
-                        if sellRemote:IsA("RemoteFunction") then 
-                            sellRemote:InvokeServer()
-                        elseif sellRemote:IsA("RemoteEvent") then 
-                            sellRemote:FireServer() 
-                        end
-                    end
-                end)
-            end
-        end)
+        local invBefore = getInventoryStats()
         
-
-        root.Anchored = false
-        
-        if needToMove then
-            if moveMethod == "Instant (TP)" then
-                root.CFrame = CFrame.new(safePos)
-                task.wait(1.5)
-            elseif moveMethod == "Tween" then
-                tweenTo(safePos)
-                task.wait(1.5)
-            elseif moveMethod == "PathFind" then
-                pathfindTo(safePos)
-                task.wait(1.5)
-            else
-                walkTo(safePos)
-                task.wait(1.5)
+        for attempt = 1, MAX_SELL_RETRIES do
+            doSellTrip(originalCFrame, merchantModel, merchantPos, needToMove, moveMethod, safePos)
+            
+            task.wait(0.5)
+            local invAfter = getInventoryStats()
+            
+            if invAfter < invBefore then
+                Library:Notify({ Title = "Sell Success", Content = "Berhasil menjual! (" .. invBefore .. " → " .. invAfter .. ")", Duration = 3 })
+                break
             end
             
-            if moveMethod == "Instant (TP)" then
-                root.CFrame = originalCFrame
-                root.Anchored = true
-                task.wait(0.1)
-                root.Anchored = false
-            elseif moveMethod == "Tween" then
-                tweenTo(originalCFrame.Position)
-            elseif moveMethod == "PathFind" then
-                pathfindTo(originalCFrame.Position)
+            if attempt < MAX_SELL_RETRIES then
+                warn("[SELL RETRY] Attempt " .. attempt .. " gagal, inventory belum berkurang. Retry...")
+                task.wait(1)
             else
-                walkTo(originalCFrame.Position)
+                warn("[SELL FAILED] Gagal menjual setelah " .. MAX_SELL_RETRIES .. " percobaan.")
+                Library:Notify({ Title = "Sell Failed", Content = "Gagal menjual setelah " .. MAX_SELL_RETRIES .. "x percobaan!", Duration = 5 })
             end
-        else
-            task.wait(1.5)
         end
-        
-        if spamConnection then spamConnection:Disconnect() end
         
         -- Discord Webhook
         if LogItems and WebhookLink ~= "" then
@@ -607,7 +646,7 @@ local function instantSellAll()
                     Url = WebhookLink,
                     Method = "POST",
                     Headers = {["Content-Type"] = "application/json"},
-                    Body = HttpService:JSONEncode({content = "Successfully auto-sold inventory to merchant.", username = "Midas Touch Webhook"})
+                    Body = HttpService:JSONEncode({content = "Auto-sold inventory to merchant.", username = "Midas Touch Webhook"})
                 })
             end)
         end
@@ -1065,8 +1104,8 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
-    Title = "Update Terbaru (18 Juli 2026, 01:10)",
-    Content = "1. Fix: Duplikat variabel VirtualUser & pendingLocks dihapus.\n2. Fix: tweenTo kini memiliki Noclip bawaan agar tidak tersangkut tembok.\n3. Fix: Noclip redundan di Auto Sell dihapus (sudah ditangani tweenTo).\n4. Cleanup: Dead code (dynamicLerpTo & equipTool) dihapus.\n5. Polish: Script lebih ringan dan stabil."
+    Title = "Update Terbaru (18 Juli 2026, 12:40)",
+    Content = "1. Polish: shouldAutoSell scan dioptimasi — langsung target FillingPan children, bukan full scan PlayerGui.\n2. Polish: Sell Retry Verification — setelah kembali dari merchant, script mengecek apakah inventory berkurang. Jika gagal, otomatis retry hingga 3x.\n3. Fix: Duplikat variabel & dead code dihapus.\n4. Fix: tweenTo memiliki Noclip bawaan."
 })
 
 Tabs.Settings:AddButton({
