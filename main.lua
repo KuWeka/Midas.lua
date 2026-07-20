@@ -563,15 +563,6 @@ local function shouldAutoSell()
             if backpackFullOld and backpackFullOld:IsA("GuiObject") and backpackFullOld.Visible then
                 return true
             end
-            
-            for _, child in ipairs(fillingPan:GetChildren()) do
-                if child:IsA("TextLabel") and child.Visible then
-                    local text = child.Text:gsub("<[^>]->", "")
-                    if string.find(string.lower(text), "backpack is full") or string.find(string.lower(text), "full") then
-                        return true
-                    end
-                end
-            end
         end
     end
     
@@ -580,8 +571,7 @@ local function shouldAutoSell()
     
     if mode == "Full Inventory" then
         if max > 0 then
-            -- Jual jika tas penuh, >= 98% penuh, atau tersisa <= 2 space (antisipasi item berat)
-            if cur >= max or cur >= (max * 0.98) or (max - cur) <= 2 then
+            if cur >= max then
                 return true
             end
         end
