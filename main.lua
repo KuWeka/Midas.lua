@@ -1344,6 +1344,71 @@ table.insert(Connections, LocalPlayer.Idled:Connect(function()
     end
 end))
 
+-- Fullbright
+local Lighting = game:GetService("Lighting")
+local fullbrightOriginal = nil
+
+Tabs.Move:AddToggle("Fullbright", { 
+    Title = "Fullbright (Terangkan Map)", 
+    Description = "Membuat area gelap menjadi terang benderang",
+    Default = false, 
+    Callback = function(v)
+        if v then
+            -- Simpan pengaturan asli
+            fullbrightOriginal = {
+                Brightness = Lighting.Brightness,
+                ClockTime = Lighting.ClockTime,
+                FogEnd = Lighting.FogEnd,
+                FogStart = Lighting.FogStart,
+                GlobalShadows = Lighting.GlobalShadows,
+                OutdoorAmbient = Lighting.OutdoorAmbient,
+                Ambient = Lighting.Ambient,
+                DisabledEffects = {}
+            }
+            
+            -- Terapkan Fullbright
+            Lighting.Brightness = 3
+            Lighting.ClockTime = 14
+            Lighting.FogEnd = 100000
+            Lighting.FogStart = 100000
+            Lighting.GlobalShadows = false
+            Lighting.OutdoorAmbient = Color3.fromRGB(200, 200, 200)
+            Lighting.Ambient = Color3.fromRGB(200, 200, 200)
+            
+            -- Nonaktifkan efek-efek gelap (Atmosphere, ColorCorrection, Bloom, Blur, DepthOfField, SunRays)
+            for _, effect in ipairs(Lighting:GetChildren()) do
+                if effect:IsA("Atmosphere") or effect:IsA("ColorCorrectionEffect") or effect:IsA("BloomEffect") 
+                   or effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") or effect:IsA("SunRaysEffect") then
+                    if effect.Enabled then
+                        table.insert(fullbrightOriginal.DisabledEffects, effect)
+                        effect.Enabled = false
+                    end
+                end
+            end
+            
+            Library:Notify({ Title = "Fullbright", Content = "Map sekarang terang benderang!", Duration = 3 })
+        else
+            -- Kembalikan ke pengaturan asli
+            if fullbrightOriginal then
+                Lighting.Brightness = fullbrightOriginal.Brightness
+                Lighting.ClockTime = fullbrightOriginal.ClockTime
+                Lighting.FogEnd = fullbrightOriginal.FogEnd
+                Lighting.FogStart = fullbrightOriginal.FogStart
+                Lighting.GlobalShadows = fullbrightOriginal.GlobalShadows
+                Lighting.OutdoorAmbient = fullbrightOriginal.OutdoorAmbient
+                Lighting.Ambient = fullbrightOriginal.Ambient
+                
+                for _, effect in ipairs(fullbrightOriginal.DisabledEffects) do
+                    if effect and effect.Parent then effect.Enabled = true end
+                end
+                
+                fullbrightOriginal = nil
+                Library:Notify({ Title = "Fullbright", Content = "Lighting dikembalikan ke asli.", Duration = 3 })
+            end
+        end
+    end
+})
+
 Tabs.Move:AddInput("DiscordWebhook", {
     Title = "Discord Webhook URL",
     Default = "",
