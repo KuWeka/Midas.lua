@@ -548,7 +548,7 @@ local function shouldAutoSell()
             for _, child in ipairs(notifications:GetDescendants()) do
                 if child:IsA("TextLabel") and child.Visible then
                     local text = string.lower(child.Text:gsub("<[^>]->", ""))
-                    if string.find(text, "backpack is full") or string.find(text, "pan is full") then
+                    if string.find(text, "backpack is full") then
                         return true
                     end
                 end
