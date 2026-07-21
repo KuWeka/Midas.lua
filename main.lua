@@ -1399,6 +1399,38 @@ Tabs.Move:AddToggle("Fullbright", {
     end
 })
 
+-- Ghost Mode
+Tabs.Move:AddButton({
+    Title = "Ghost Mode (Invisibility)",
+    Description = "NPC & Monster tidak bisa melihatmu. PERINGATAN: Posisi server akan freeze, Auto Sell mungkin rusak. Reset karakter untuk mematikan.",
+    Callback = function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local root = char.HumanoidRootPart
+            local oldCFrame = root.CFrame
+            
+            -- Lempar posisi asli jauh ke atas
+            char:MoveTo(Vector3.new(0, 100000, 0))
+            task.wait(0.2)
+            
+            -- Clone RootPart untuk klien, hapus yang lama agar server kehilangan jejak
+            local clone = root:Clone()
+            root:Destroy()
+            clone.Parent = char
+            char.PrimaryPart = clone
+            
+            -- Kembalikan klien ke posisi semula
+            char:SetPrimaryPartCFrame(oldCFrame)
+            
+            Library:Notify({ 
+                Title = "Ghost Mode Aktif!", 
+                Content = "Kamu sekarang invisible! Reset karakter (mati) untuk mematikan mode ini.", 
+                Duration = 5 
+            })
+        end
+    end
+})
+
 Tabs.Move:AddInput("DiscordWebhook", {
     Title = "Discord Webhook URL",
     Default = "",
