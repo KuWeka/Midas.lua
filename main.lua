@@ -1139,7 +1139,7 @@ Tabs.Sell:AddInput("TargetInventoryValue", {
 })
 
 Tabs.Sell:AddButton({
-    Title = "🔧 DEBUG: Test Check Bag",
+    Title = "[!] DEBUG: Test Check Bag",
     Description = "Klik ini saat tas hampir penuh untuk mengecek apakah script berhasil membacanya.",
     Callback = function()
         local pgui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -1175,12 +1175,12 @@ Tabs.Sell:AddButton({
 -- ==========================================
 -- 10. TAB 3: FAVOURITE (AUTO-LOCK)
 -- ==========================================
-Tabs.Favourite:AddParagraph({ Title = "🚧 Dalam Pengembangan", Content = "Fitur Auto Lock sedang dibangun ulang dari awal dan akan hadir di update mendatang." })
+Tabs.Favourite:AddParagraph({ Title = "[WIP] Dalam Pengembangan", Content = "Fitur Auto Lock sedang dibangun ulang dari awal dan akan hadir di update mendatang." })
 
 -- ==========================================
 -- 11. TAB 4: SHOP (REMOTE)
 -- ==========================================
-Tabs.Shop:AddParagraph({ Title = "🚧 Dalam Pengembangan", Content = "Fitur Shop sedang dibangun ulang dari awal dan akan hadir di update mendatang." })
+Tabs.Shop:AddParagraph({ Title = "[WIP] Dalam Pengembangan", Content = "Fitur Shop sedang dibangun ulang dari awal dan akan hadir di update mendatang." })
 
 -- ==========================================
 -- 12. TAB 5: TELEPORT & SERVER HOP
@@ -1219,7 +1219,7 @@ local WaypointDropdown = Tabs.Teleport:AddDropdown("WaypointSelector", {
 })
 
 Tabs.Teleport:AddButton({
-    Title = "🔄 Refresh Waypoints",
+    Title = "[R] Refresh Waypoints",
     Callback = function()
         local folder = getWaypointFolder()
         
@@ -1245,7 +1245,7 @@ Tabs.Teleport:AddButton({
 })
 
 Tabs.Teleport:AddButton({
-    Title = "🚀 Teleport ke Waypoint",
+    Title = "[T] Teleport ke Waypoint",
     Callback = function()
         local wpName = Options.WaypointSelector and Options.WaypointSelector.Value
         if not wpName or wpName == "- Kosong -" then return end
@@ -1279,7 +1279,7 @@ local PlayerDropdown = Tabs.Teleport:AddDropdown("PlayerSelector", {
 })
 
 Tabs.Teleport:AddButton({
-    Title = "🔄 Refresh Players",
+    Title = "[R] Refresh Players",
     Callback = function()
         local list = {}
         for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
@@ -1299,7 +1299,7 @@ Tabs.Teleport:AddButton({
 })
 
 Tabs.Teleport:AddButton({
-    Title = "🧑 Teleport ke Player",
+    Title = "[P] Teleport ke Player",
     Callback = function()
         local pName = Options.PlayerSelector and Options.PlayerSelector.Value
         if not pName or pName == "- Kosong -" then return end
