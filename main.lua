@@ -175,18 +175,21 @@ local antiAFK = false
 -- ==========================================
 -- 3. UTILITIES & FUNCTIONS
 -- ==========================================
+local GuiService = game:GetService("GuiService")
 local function simulateMouseDown(guiObject)
     if not guiObject then return end
+    local inset = GuiService:GetGuiInset()
     local x = guiObject.AbsolutePosition.X + (guiObject.AbsoluteSize.X / 2)
-    local y = guiObject.AbsolutePosition.Y + (guiObject.AbsoluteSize.Y / 2)
-    VirtualInputManager:SendMouseButtonEvent(x, y + 36, 0, true, guiObject, 1)
+    local y = guiObject.AbsolutePosition.Y + (guiObject.AbsoluteSize.Y / 2) + inset.Y
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, guiObject, 1)
 end
 
 local function simulateMouseUp(guiObject)
     if not guiObject then return end
+    local inset = GuiService:GetGuiInset()
     local x = guiObject.AbsolutePosition.X + (guiObject.AbsoluteSize.X / 2)
-    local y = guiObject.AbsolutePosition.Y + (guiObject.AbsoluteSize.Y / 2)
-    VirtualInputManager:SendMouseButtonEvent(x, y + 36, 0, false, guiObject, 1)
+    local y = guiObject.AbsolutePosition.Y + (guiObject.AbsoluteSize.Y / 2) + inset.Y
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, guiObject, 1)
 end
 
 local function findPan()
@@ -334,7 +337,7 @@ local function getTargetMerchant()
     local selectedMerchant = Options.MerchantSelector and Options.MerchantSelector.Value or "Closest"
     
     if selectedMerchant == "Closest" then
-        if cachedMerchantPos and (tick() - merchantCacheTime < 60) then
+        if cachedMerchantPos and cachedMerchantModel and cachedMerchantModel.Parent ~= nil and (tick() - merchantCacheTime < 60) then
             return cachedMerchantModel, cachedMerchantPos, (root.Position - cachedMerchantPos).Magnitude
         end
         
@@ -410,16 +413,19 @@ end
 -- ==========================================
 -- 5. BYPASS TELEPORT HELPER
 -- ==========================================
+local currentVelocityThread = nil
 local function breakVelocity(char)
     if not char then return end
-    task.spawn(function()
+    if currentVelocityThread then task.cancel(currentVelocityThread) end
+    
+    currentVelocityThread = task.spawn(function()
         local startTime = tick()
         while tick() - startTime < 1 do
             for i = 1, #characterParts do
                 local part = characterParts[i]
                 if part and part.Parent then
-                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                    part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                    part.AssemblyLinearVelocity = Vector3.zero
+                    part.AssemblyAngularVelocity = Vector3.zero
                 end
             end
             task.wait()
@@ -490,7 +496,9 @@ local function tweenTo(targetPos)
     
     if noclipConn then noclipConn:Disconnect() end
     for part, state in pairs(originalCollisions) do
-        if part and part.Parent then part.CanCollide = state end
+        if part and part.Parent and part:IsDescendantOf(workspace) then 
+            part.CanCollide = state 
+        end
     end
     if hum then hum.PlatformStand = false end
 end
@@ -1402,7 +1410,7 @@ Tabs.Move:AddToggle("Fullbright", {
 -- Ghost Mode
 Tabs.Move:AddButton({
     Title = "Ghost Mode (Invisibility)",
-    Description = "NPC & Monster tidak bisa melihatmu. PERINGATAN: Posisi server akan freeze, Auto Sell mungkin rusak. Reset karakter untuk mematikan.",
+    Description = "NPC & Monster tidak bisa melihatmu. PERINGATAN: Mematikan fungsi Auto Farm & Auto Sell. Reset karakter untuk mematikan.",
     Callback = function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
@@ -1512,12 +1520,14 @@ task.spawn(function()
                         if geodeCollectMethod == "Teleport Player" then
                             local originalCFrame = root.CFrame
                             for _, node in ipairs(geodesFound) do
-                                char:MoveTo(node.part.Position + Vector3.new(0, 3, 0))
-                                breakVelocity(char)
-                                
-                                task.wait(0.5)
-                                attemptCollect(node)
-                                task.wait(0.2)
+                                if node.part and node.part.Parent then
+                                    char:MoveTo(node.part.Position + Vector3.new(0, 3, 0))
+                                    breakVelocity(char)
+                                    
+                                    task.wait(0.5)
+                                    attemptCollect(node)
+                                    task.wait(0.2)
+                                end
                             end
                             
                             -- Kembali ke tempat semula
@@ -1544,7 +1554,7 @@ Tabs.Move:AddSlider("JumpPowerVal", { Title = "Jump", Default = 100, Min = 50, M
 Tabs.Move:AddToggle("InfJump", { Title = "Infinite Jump", Default = false, Callback = function(v) MoveState.IJ = v end })
 Tabs.Move:AddToggle("NoClip", { Title = "Smart NoClip", Default = false, Callback = function(v) MoveState.NC = v end })
 
-table.insert(Connections, RunService.Heartbeat:Connect(function(dt)
+table.insert(Connections, RunService.Stepped:Connect(function(time, dt)
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChildOfClass("Humanoid")
