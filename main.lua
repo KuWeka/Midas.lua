@@ -813,7 +813,7 @@ local function dig()
                 if not (char and char.Parent and equippedPan and equippedPan.Parent) then break end
             end
             simulateMouseUp(collectButton)
-            task.wait(0.7)
+            task.wait(0.3)
         end
     else
         -- Legit Dig Method (Tahan sampai full tanpa putus)
@@ -932,7 +932,7 @@ local function pan()
                     if not fillBar or not fillBar.Parent then break end
                     if fillBar.Size.X.Scale <= 0 then break end
                 end
-                task.wait(0.7)
+                task.wait(0.3)
             end
         end
     end
