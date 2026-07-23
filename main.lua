@@ -1596,6 +1596,11 @@ end))
 -- 14. TAB: CHANGELOG & SETTINGS
 -- ==========================================
 Tabs.Changelog:AddParagraph({
+    Title = "V32 - UI Fix & Auto Farm Sync (24 Juli 2026)",
+    Content = "1. Fix bug UI hilang (Teleport ke Player, Geode Farm, dll) di beberapa executor dengan menghapus emoji Unicode.\n2. Menambahkan delay sinkronisasi (0.3s) di Auto Farm (metode TP) untuk mencegah karakter nyangkut di air/pasir karena latency server."
+})
+
+Tabs.Changelog:AddParagraph({
     Title = "V31 - Anti-Rollback & Full Audit Fix (19 Juli 2026)",
     Content = "1. Bypass Teleport gabungan Dex++ (MoveTo) + Infinite Yield (BreakVelocity) diterapkan ke semua fitur.\n2. Fix crash: variabel char undefined di doSellTrip.\n3. SellAll remote throttle (0.5s cooldown) mencegah rate-limit/ban.\n4. tweenTo kini punya timeout 30 detik (anti-hang).\n5. Background loops (Auto Sell, Geode, Auto Lock) berhenti saat Unload.\n6. Fungsi breakVelocity() di-ekstrak (menghapus ~70 baris duplikat).\n7. Fix deprecated root.Velocity → AssemblyLinearVelocity.\n8. Tab Waypoint path resolver di-deduplikasi.\n9. Tab kosong (Favourite & Shop) kini menampilkan placeholder."
 })
